@@ -3,6 +3,8 @@
 # FetchContent_Declare
 # FetchContent_Populate
 
+#90% code of this file are from ChatGPT
+
 set(DEPS_DIR "${PROJECT_SOURCE_DIR}/_deps")
 # =====================
 # tinygltf

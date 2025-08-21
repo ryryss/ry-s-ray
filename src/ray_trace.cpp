@@ -38,12 +38,9 @@ float Moller_Trumbore(const vec3& o, const vec3& d, const vec3& a, const vec3& b
 void RayTrace::SetCamera(const ry::Camera& c)
 {
     cam = c;
-    /*up = normalize(vec3(c.m[1]));
-    f = normalize(vec3(c.m[2]));
-    l = vec3(c.m[3]);*/
-    up = c.m * vec4(0.0, 1.0, 0.0, 1.0);
-    f = c.m * vec4(0.0, 0.0, 1.0, 1.0);
-    l = c.m * vec4(0.0, 0.0, 0.0, 1.0);
+    up = normalize(vec3(c.m[1])); // look up
+    f = normalize(vec3(c.m[2]));  // look forward
+    l = vec3(c.m[3]);
 
     w = normalize((l - f));
     u = normalize(cross(up, f));

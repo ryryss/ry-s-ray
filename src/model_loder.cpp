@@ -201,7 +201,7 @@ void GLBModelLoader::ParseChildNode(int num)
             toMat4(quat((n.rotation[3]), (n.rotation[0]), (n.rotation[1]), (n.rotation[2])));
 
         mat4 S = n.scale.empty() ? glm::mat4(1.0f) : 
-            glm::scale(glm::mat4(1.0f), { n.rotation[0], n.rotation[1], n.rotation[2] });
+            glm::scale(glm::mat4(1.0f), { n.scale[0], n.scale[1], n.scale[2] });
 
         t = T * R * S;
     }
