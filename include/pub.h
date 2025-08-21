@@ -33,31 +33,36 @@ struct Triangle {
 };
 
 struct Node {
-    Node* p = nullptr; // parent, no where use this at now
+    Node* p = nullptr;        // parent, no where use this at now
     std::string name;
     mat4 m = mat4(1.0f);
-    std::vector<uint32_t> c; // children
+    std::vector<uint32_t> c;  // children
+    int num = -1;             // or call index, can find it use model.nodes[num]
+    std::string type = "node";
 };
 
-struct Camera
-{
-    std::string type = "perspective";
-    std::string name;
-    mat4 m = mat4(1.0f);
-
+struct Camera : public Node {
     float znear = 0.0;
     float zfar = 0.0;
 
     // perspective
-    double aspectRatio{ 0.0 };  // min > 0
-    double yfov{ 0.0 };         // required. min > 0
+    double aspectRatio = 0.0;  // min > 0
+    double yfov = 0.0;         // required. min > 0
     // orthographic
-    double xmag{ 0.0 };   // required. must not be zero.
-    double ymag{ 0.0 };   // required. must not be zero.
+    double xmag = 0.0;   // required. must not be zero.
+    double ymag = 0.0;   // required. must not be zero.
+    Camera() {};
+    Camera(const Node& other) : Node(other) {};
 };
 
-struct Screen
-{
+struct Light : public Node {
+    double intensity = 0.0;
+
+    Light() {};
+    Light(const Node& other) : Node(other) {};
+};
+
+struct Screen {
     uint16_t w = 0;
     uint16_t h = 0;
 };
@@ -76,7 +81,6 @@ inline void PrintVec(vec3 v)
 
 inline void PrintMat4(mat4 m)
 {
-    // col major
     /*for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
             if (std::fabs(m[j][i]) < 1e-6f) {
@@ -87,6 +91,8 @@ inline void PrintMat4(mat4 m)
         }
         std::cout << std::endl;
     }*/
+
+    // be care glm is col major
     std::cout << glm::to_string(m) << std::endl;
 }
 

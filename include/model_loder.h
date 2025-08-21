@@ -16,9 +16,10 @@ public:
 private:
     void ParsePrimitive(const tinygltf::Primitive& p, const ry::mat4& m);
     void ParseNode();
-    void ParseMesh(int num, const ry::mat4& m);
+    void ParseMesh(int num);
     void ParseChildNode(int num);
-    const tinygltf::Camera& ParseCam(int num);
+    void ParseCam(int num);
+    void ParseLgt(int num);
 
     ry::mat4 GetNodeMat(int num);
 
@@ -27,6 +28,6 @@ private:
     std::vector<ry::Node> nodes;
     std::vector<uint32_t> roots;
     ry::Camera cam;
-    int n_cam = -1;
+    ry::Light lgt;
 };
 #endif

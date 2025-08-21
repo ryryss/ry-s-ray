@@ -23,37 +23,62 @@ bool GLBModelLoader::LoadFromFile(const string& file)
     }
 
     ParseNode();
-    for (int i = 0; i < model.nodes.size(); i++) {
+    for (int i = 0; i < nodes.size(); i++) {
         const auto& n = model.nodes[i];
         const auto& node = nodes[i];
         if (n.mesh >= 0) {
-            ParseMesh(n.mesh, node.m);
+            ParseMesh(i);
+        }
+        if (n.camera >= 0) {
+            ParseCam(i);
+        }
+
+        if (n.light >= 0) {
+            ParseLgt(i);
         }
     }
     return true;
 }
 
-const tinygltf::Camera& GLBModelLoader::ParseCam(int num)
+void GLBModelLoader::ParseCam(int num)
 {
-    // for (const auto& c : model.cameras) {
-        const auto& c = model.cameras[num];
-        cam.name = c.name;
-        cam.type = c.type;
-        if (c.type == "perspective") {
-            cam.znear = c.perspective.znear;
-            cam.zfar = c.perspective.zfar;
-            cam.yfov = c.perspective.yfov;
-            cam.aspectRatio = c.perspective.aspectRatio;
-        } else if (c.type == "orthographic") {
-            cam.znear = c.orthographic.znear;
-            cam.zfar = c.orthographic.zfar;
-            cam.xmag = c.orthographic.xmag;
-            cam.ymag = c.orthographic.ymag;
-        } else {
-            throw("cam info error, use default cam");
-        }
-        return c; // now just sup 1 cam
-    // }
+    if (model.cameras.size() > 1) {
+        throw("now just sup one cam");
+    }
+    const auto& n = model.nodes[num];
+    const auto& node = nodes[num];
+
+    const auto& c = model.cameras[n.camera];
+    cam = ry::Camera(node);
+    cam.type = c.type;
+    if (c.type == "perspective") {
+        cam.znear = c.perspective.znear;
+        cam.zfar = c.perspective.zfar;
+        cam.yfov = c.perspective.yfov;
+        cam.aspectRatio = c.perspective.aspectRatio;
+    } else if (c.type == "orthographic") {
+        cam.znear = c.orthographic.znear;
+        cam.zfar = c.orthographic.zfar;
+        cam.xmag = c.orthographic.xmag;
+        cam.ymag = c.orthographic.ymag;
+    } else {
+        throw("cam info error");
+    }
+}
+
+void GLBModelLoader::ParseLgt(int num)
+{
+    if (model.lights.size() > 1) {
+        throw("now just sup one lgt");
+    }
+    const auto& n = model.nodes[num];
+    const auto& node = nodes[num];
+
+    const auto& l = model.lights[n.light];
+    lgt = ry::Light(node);
+    lgt.type = l.type;
+    if (lgt.type == "") {
+    }
 }
 
 void GLBModelLoader::ParsePrimitive(const Primitive& p, const mat4& m)
@@ -145,15 +170,19 @@ void GLBModelLoader::ParseNode()
             roots.push_back(i);
             auto& p = nodes[i];        // parent and root
             p.name = n.name;
+            p.num = i;
             p.m = GetNodeMat(i) * p.m; // root's mat is root
             ParseChildNode(i);         // apply mat to all child node
         }
     }
 }
 
-void GLBModelLoader::ParseMesh(int i, const mat4& m)
+void GLBModelLoader::ParseMesh(int num)
 {
-    const auto& mesh = model.meshes[i];
+    const auto& node = nodes[num];
+    const auto& n = model.nodes[num];
+    const auto& mesh = model.meshes[n.mesh];
+    const mat4& m = node.m;
     for (const auto& p : mesh.primitives) {
         ParsePrimitive(p, m);
     }
@@ -164,17 +193,12 @@ void GLBModelLoader::ParseChildNode(int num)
     const auto& n = model.nodes[num];
     auto& p = nodes[num]; // parent
     p.c.resize(n.children.size());
-    if (n.camera >= 0 && n_cam < 0) { // simple use first cam
-        ParseCam(n.camera);
-        n_cam = num;
-        cam.m = p.m;
-    }
-
     for (int i = 0; i < n.children.size(); i++) {
         int c_num = n.children[i];
         p.c[i] = c_num;
-        auto& c = nodes[c_num];
+        auto& c = nodes[c_num]; // child node
         c.name = model.nodes[c_num].name;
+        c.num = num;
         auto trans = GetNodeMat(c_num);
         c.m = p.m * trans * c.m; // apply mat
         ParseChildNode(c_num);
