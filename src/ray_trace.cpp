@@ -1,39 +1,11 @@
 ﻿#include "ray_trace.h"
+#include "algorithm.h"
 #include "task.h"
 
 using namespace std;
 using namespace ry;
 using namespace glm;
-
-// Individual algorithm functions
-// TODO: will move to other file
-float Moller_Trumbore(const vec3& o, const vec3& d, const vec3& a, const vec3& b, const vec3& c)
-{
-    // tri base vec
-    vec3 e1 = b - a;
-    vec3 e2 = c - a;
-
-    vec3 s1 = cross(d, e2);
-    float det = dot(e1, s1);
-    if (fabs(det) <= 1e-8) {
-        return numeric_limits<float>::max();
-    }
-    
-    vec3 s = o - a;
-    float ted = 1 / det;
-    float u = dot(s, s1) * ted;
-    if (u < 0.0f || u > 1.0f) { // use center of gravity coordinates to judge
-        return numeric_limits<float>::max();
-    }
-
-    vec3 s2 = cross(s, e1);
-    float v = dot(d, s2) * ted;
-    if (v < 0.0f || v + u > 1.0f) {
-        return numeric_limits<float>::max();
-    }
-
-    return dot(e2, s2) * ted;
-}
+using namespace alg;
 
 void RayTrace::SetCamera(const ry::Camera& c)
 {
@@ -131,12 +103,14 @@ bool RayTrace::RayCompute(const float& uu, const float& vv)
     bool hit = false;
     float min_t = numeric_limits<float>::max();
     for (int i = 0; i < input->size(); i ++) {
-        auto t = Moller_Trumbore(o, d, (*input)[i].pos[0], (*input)[i].pos[1], (*input)[i].pos[2]);
-        if (cam.type == "perspective" || t > cam.znear && t < cam.zfar) {
-            // now just orthographic can do depth test 
-            if (t < min_t) {
-                min_t = t;
-                hit = true;
+        float t, u, v;
+        if(Moller_Trumbore(o, d, (*input)[i].pos[0], (*input)[i].pos[1], (*input)[i].pos[2], t, u, v)) {
+            if (cam.type == "perspective" || t > cam.znear && t < cam.zfar) {
+                // now just orthographic can do depth test 
+                if (t < min_t) {
+                    min_t = t;
+                    hit = true;
+                }
             }
         }
     }
