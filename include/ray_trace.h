@@ -6,6 +6,9 @@ class RayTrace {
 public:
 	RayTrace() {};
 	void SetCamera(const ry::Camera& c);
+	void SetLight(const ry::Light& l) {
+		lgt = l;
+	}
 	std::vector<uint8_t > Excute(const ry::Screen& s);
 	std::vector<uint8_t >& GetResult() {
 		return colors;
@@ -15,10 +18,11 @@ public:
 	}
 private:
 	void RayGeneration();
-	bool RayCompute(const float& uu, const float& vv);
+	bool RayCompute(uint32_t x, uint32_t y);
 	void RayShading(uint16_t x, uint16_t y);
 
 	ry::Camera cam;
+	ry::Light lgt;
 	ry::Screen scr;
 	std::vector<uint8_t > colors;
 

@@ -1,6 +1,7 @@
 #include "algorithm.h"
 using namespace ry;
 using namespace alg;
+using namespace glm;
 using namespace std;
 
 bool alg::Moller_Trumbore(const vec3& o, const vec3& d, const vec3& a,
@@ -33,4 +34,9 @@ bool alg::Moller_Trumbore(const vec3& o, const vec3& d, const vec3& a,
     g_u = u;
     g_v = v;
     return true;
+}
+
+vec3 alg::LambertianShading(const vec3& albedo, float intensity, const vec3& d, const vec3& n)
+{
+    return albedo * intensity * glm::max(0.0f, dot(n, d));
 }

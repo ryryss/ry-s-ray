@@ -21,6 +21,7 @@ int main(int argc, char* argv[]) {
 
     RayTrace r;
     r.SetCamera(l.GetCam());
+    r.SetLight(l.GetLgt());
     r.SetData(&l.GetTriangles());
  
     while (1) {
