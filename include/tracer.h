@@ -1,23 +1,20 @@
 #ifndef	RAY_TRACE
 #define RAY_TRACE
 #include "pub.h"
-
-class RayTrace {
+#include "loder.h"
+class Tracer {
 public:
-	RayTrace() {};
-	void SetCamera(const ry::Camera& c);
-	void SetLight(const ry::Light& l) {
-		lgt = l;
-	}
+	Tracer() {};
 	std::vector<uint8_t > Excute(const ry::Screen& s);
 	std::vector<uint8_t >& GetResult() {
 		return colors;
 	}
-	void SetData(const std::vector<ry::Triangle>* t) {
-		input = t;
+	inline void SetModel(Loader* m) {
+		model = m;
 	}
+	void ProcessCamera();
 private:
-	void RayGeneration();
+	void Calculate();
 	bool RayCompute(uint32_t x, uint32_t y);
 	void RayShading(uint16_t x, uint16_t y);
 
@@ -33,6 +30,11 @@ private:
 	// some mid vec by base vec cal
 	ry::vec3 u, v, w;
 
-	const std::vector<ry::Triangle>* input;
+	/* 
+	   Actually i do not want ray_trace.h include other head file except math
+	   but keep a data struct ptr can easy to handle data.
+	   To fully decouple, we could add an intermediate class to call loader and tracer.
+	 */
+	Loader* model;
 };
 #endif

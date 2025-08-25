@@ -24,17 +24,8 @@ using vec2 = glm::vec2;
 using vec4 = glm::vec4;
 using mat4 = glm::mat4;
 
-struct Vertex {
-    vec3 position;
-    char color[3];
-    vec3 normal;
-    float texcoord[2];
-};
-
 struct Triangle {
-    vec3 pos[3];
-    char color[3][3]; // by center of gravity coordinates
-    vec3 normal[3];
+    vec4 color; // by center of gravity coordinates
 };
 
 struct Node {

@@ -1,14 +1,14 @@
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "model_loder.h"
+#include "loder.h"
 
 using namespace std;
 using namespace tinygltf;
 using namespace ry;
 using namespace glm;
 
-bool GLBModelLoader::LoadFromFile(const string& file)
+bool Loader::LoadFromFile(const string& file)
 {
     TinyGLTF loader;
     string err;
@@ -32,7 +32,6 @@ bool GLBModelLoader::LoadFromFile(const string& file)
         if (n.camera >= 0) {
             ParseCam(i);
         }
-
         if (n.light >= 0) {
             ParseLgt(i);
         }
@@ -40,7 +39,7 @@ bool GLBModelLoader::LoadFromFile(const string& file)
     return true;
 }
 
-void GLBModelLoader::ParseCam(int num)
+void Loader::ParseCam(int num)
 {
     if (model.cameras.size() > 1) {
         throw("now just sup one cam");
@@ -66,7 +65,7 @@ void GLBModelLoader::ParseCam(int num)
     }
 }
 
-void GLBModelLoader::ParseLgt(int num)
+void Loader::ParseLgt(int num)
 {
     if (model.lights.size() > 1) {
         throw("now just sup one lgt");
@@ -83,44 +82,25 @@ void GLBModelLoader::ParseLgt(int num)
     }
 }
 
-void GLBModelLoader::ParsePrimitive(const Primitive& p, const mat4& m)
+void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
 {
     const auto idx = move(ParseVertIdx(p));
     const auto tex = move(ParseTexTure(p));
     const auto nor = move(ParseNormal(p));
     const auto col = move(ParseVertColor(p));
-
+    const auto pos = move(ParsePosition(p));
+    // simple get one texture
     const auto& image = model.images[0];
     const unsigned char* pixels = image.image.data();
     int w = image.width;
     int h = image.height;
     int comp = image.component;
 
-    // get bufferView data
-    const Accessor& posAccessor = model.accessors[p.attributes.find("POSITION")->second];
-    const BufferView& posView = model.bufferViews[posAccessor.bufferView];
-    const Buffer& posBuffer = model.buffers[posView.buffer];
-    const float* posData = reinterpret_cast<const float*>(
-        &posBuffer.data[posView.byteOffset + posAccessor.byteOffset]);
-    // parse vert
-    vector<Vertex> vertices(posAccessor.count);
-    for (size_t i = 0; i < vertices.size(); ++i) {
-        vertices[i].position[0] = posData[i * 3 + 0];
-        vertices[i].position[1] = posData[i * 3 + 1];
-        vertices[i].position[2] = posData[i * 3 + 2];
-        /*if (colorData) {
-            vertices[i].color[0] = colorData[i * 3 + 0];
-            vertices[i].color[1] = colorData[i * 3 + 1];
-            vertices[i].color[2] = colorData[i * 3 + 2];
-        } else {
-            vertices[i].color[0] = vertices[i].color[1] = vertices[i].color[2] = 1.0f;
-        }*/
-        if (texcoords) {
-            vertices[i].texcoord[0] = texcoords[i * 2 + 0];
-            vertices[i].texcoord[1] = texcoords[i * 2 + 1];
-
-            auto u = vertices[i].texcoord[0];
-            auto v = vertices[i].texcoord[1];
+    // final parse
+    /*for (size_t i = 0; i < pos.size(); ++i) {
+        if (tex.size()) {
+            auto u = tex[i * 2 + 0];
+            auto v = tex[i * 2 + 1];
             int x = int(u * (w - 1));
             int y = int((1.0f - v) * (h - 1)); // ·­×ªV
             int idx = (y * w + x) * comp;
@@ -130,18 +110,11 @@ void GLBModelLoader::ParsePrimitive(const Primitive& p, const mat4& m)
         } else {
             vertices[i].texcoord[0] = vertices[i].texcoord[1] = 0.0f;
         }
-
-        if (normal) {
-            vertices[i].normal[0] = normal[i * 3 + 0];
-            vertices[i].normal[1] = normal[i * 3 + 1];
-            vertices[i].normal[2] = normal[i * 3 + 2];
-        }
-    }
+    }*/
 
     // change to tri
-    mat3 n_m = transpose(inverse(mat3(m)));
-    vector<Triangle> toTri(indices.size() / 3);
-    for (auto i = 0; i < indices.size(); i += 3) {
+    /*mat3 n_m = transpose(inverse(mat3(m)));
+    for (auto i = 0; i < pos.size(); i += 3) {
         for (int j = 0; j < 3; j++) {
             toTri[i / 3].pos[0 + j] = m * vec4(vertices[indices[i + j]].position, 1.0f);
             // toTri[i / 3].color[0 + j] = vertices[indices[i + j]].color;
@@ -152,11 +125,10 @@ void GLBModelLoader::ParsePrimitive(const Primitive& p, const mat4& m)
                 toTri[i / 3].color[j][2] = vertices[indices[i + j]].color[2];
             }
         }
-    }
-    tris.insert(tris.end(), toTri.begin(), toTri.end());
+    }*/
 }
 
-vector<uint32_t> GLBModelLoader::ParseVertIdx(const Primitive& p)
+vector<uint32_t> Loader::ParseVertIdx(const Primitive& p)
 {
     vector<uint32_t> res;
     if (p.indices >= 0) {
@@ -187,7 +159,7 @@ vector<uint32_t> GLBModelLoader::ParseVertIdx(const Primitive& p)
     return res;
 }
 
-vector<vec2> GLBModelLoader::ParseTexTure(const Primitive& p)
+vector<vec2> Loader::ParseTexTure(const Primitive& p)
 {
     vector<vec2> res;
     auto it = p.attributes.find("TEXCOORD_0");
@@ -220,7 +192,7 @@ vector<vec2> GLBModelLoader::ParseTexTure(const Primitive& p)
     return res;
 }
 
-vector<vec3> GLBModelLoader::ParseNormal(const Primitive& p)
+vector<vec3> Loader::ParseNormal(const Primitive& p)
 {
     vector<vec3> res;
     auto it = p.attributes.find("NORMAL");
@@ -256,7 +228,7 @@ vector<vec3> GLBModelLoader::ParseNormal(const Primitive& p)
     return res;
 }
 
-vector<vec4> GLBModelLoader::ParseVertColor(const Primitive& p)
+vector<vec4> Loader::ParseVertColor(const Primitive& p)
 {
     vector<vec4> res;
     auto it = p.attributes.find("COLOR_0");
@@ -267,10 +239,88 @@ vector<vec4> GLBModelLoader::ParseVertColor(const Primitive& p)
     const auto& v = model.bufferViews[acc.bufferView];
     const auto& b = model.buffers[v.buffer];
     const unsigned char* pData = &b.data[v.byteOffset + acc.byteOffset];
+    size_t stride = acc.ByteStride(v);
+    res.reserve(acc.count);
+    for (size_t i = 0; i < acc.count; i++) {
+        vec4 c{ 1.0f, 1.0f, 1.0f, 1.0f };
+        if (acc.type == TINYGLTF_TYPE_VEC3) {
+            if (acc.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
+                const float* ptr = reinterpret_cast<const float*>(pData + i * stride);
+                c.r = ptr[0]; c.g = ptr[1]; c.b = ptr[2];
+                c.a = 1.0f;
+            } else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+                const uint8_t* ptr = reinterpret_cast<const uint8_t*>(pData + i * stride);
+                c.r = ptr[0] / 255.0f;
+                c.g = ptr[1] / 255.0f;
+                c.b = ptr[2] / 255.0f;
+                c.a = 1.0f;
+            } else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+                const uint16_t* ptr = reinterpret_cast<const uint16_t*>(pData + i * stride);
+                c.r = ptr[0] / 65535.0f;
+                c.g = ptr[1] / 65535.0f;
+                c.b = ptr[2] / 65535.0f;
+                c.a = 1.0f;
+            }
+        } else if (acc.type == TINYGLTF_TYPE_VEC4) {
+            if (acc.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
+                const float* ptr = reinterpret_cast<const float*>(pData + i * stride);
+                c.r = ptr[0]; c.g = ptr[1]; c.b = ptr[2]; c.a = ptr[3];
+            } else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+                const uint8_t* ptr = reinterpret_cast<const uint8_t*>(pData + i * stride);
+                c.r = ptr[0] / 255.0f;
+                c.g = ptr[1] / 255.0f;
+                c.b = ptr[2] / 255.0f;
+                c.a = ptr[3] / 255.0f;
+            } else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+                const uint16_t* ptr = reinterpret_cast<const uint16_t*>(pData + i * stride);
+                c.r = ptr[0] / 65535.0f;
+                c.g = ptr[1] / 65535.0f;
+                c.b = ptr[2] / 65535.0f;
+                c.a = ptr[3] / 65535.0f;
+            }
+        }
+        res.push_back(c);
+    }
     return res;
 }
 
-void GLBModelLoader::ParseNode()
+vector<vec3> Loader::ParsePosition(const Primitive& p)
+{
+    vector<vec3> res;
+    auto it = p.attributes.find("POSITION");
+    if (it == p.attributes.end()) {
+        return res;
+    }
+    const auto& acc = model.accessors[it->second];
+    const auto& v = model.bufferViews[acc.bufferView];
+    const auto& b = model.buffers[v.buffer];
+    const unsigned char* pData = &b.data[v.byteOffset + acc.byteOffset];
+    size_t stride = acc.ByteStride(v);
+    res.reserve(acc.count);
+    for (size_t i = 0; i < acc.count; i++) {
+        glm::vec3 pos(0.0f);
+        if (acc.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
+            const float* ptr = reinterpret_cast<const float*>(pData + i * stride);
+            pos.x = ptr[0];
+            pos.y = ptr[1];
+            pos.z = ptr[2];
+        } else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_SHORT) {
+            const int16_t* ptr = reinterpret_cast<const int16_t*>(pData + i * stride);
+            pos.x = ptr[0] / 32767.0f;
+            pos.y = ptr[1] / 32767.0f;
+            pos.z = ptr[2] / 32767.0f;
+        } else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+            const uint16_t* ptr = reinterpret_cast<const uint16_t*>(pData + i * stride);
+            pos.x = ptr[0] / 65535.0f;
+            pos.y = ptr[1] / 65535.0f;
+            pos.z = ptr[2] / 65535.0f;
+        }
+        res.push_back(pos);
+    }
+    return res;
+}
+
+void Loader::ParseNode()
 {
     if (model.scenes.size() > 1) {
         throw ("now just sup 1 cam 1 scene");
@@ -290,7 +340,7 @@ void GLBModelLoader::ParseNode()
     }
 }
 
-void GLBModelLoader::ParseMesh(int num)
+void Loader::ParseMesh(int num)
 {
     const auto& node = nodes[num];
     const auto& n = model.nodes[num];
@@ -301,7 +351,7 @@ void GLBModelLoader::ParseMesh(int num)
     }
 }
 
-void GLBModelLoader::ParseChildNode(int num)
+void Loader::ParseChildNode(int num)
 {
     const auto& n = model.nodes[num];
     auto& p = nodes[num]; // parent
@@ -318,7 +368,7 @@ void GLBModelLoader::ParseChildNode(int num)
     }
 }
 
- mat4 GLBModelLoader::GetNodeMat(int num)
+ mat4 Loader::GetNodeMat(int num)
 {
      mat4 t = mat4(1.0f);
      if (num < 0) {

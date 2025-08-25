@@ -1,4 +1,4 @@
-﻿#include "ray_trace.h"
+﻿#include "tracer.h"
 #include "algorithm.h"
 #include "task.h"
 
@@ -7,9 +7,9 @@ using namespace ry;
 using namespace glm;
 using namespace alg;
 
-void RayTrace::SetCamera(const ry::Camera& c)
+void Tracer::ProcessCamera()
 {
-    cam = c;
+    auto c = model->GetCam();
     up = normalize(vec3(c.m[1])); // look up
     f = normalize(vec3(c.m[2]));  // look forward
     l = vec3(c.m[3]);
@@ -19,11 +19,12 @@ void RayTrace::SetCamera(const ry::Camera& c)
     v = cross(f, u);
 }
 
-vector<uint8_t> RayTrace::Excute(const Screen& s)
+vector<uint8_t> Tracer::Excute(const Screen& s)
 {
     if (s.h <= 0 && s.w <= 0) {
         return colors;
     } else {
+        ProcessCamera();
         scr = s;
         colors.clear();
         colors.resize(s.h * s.w * 3);
@@ -37,11 +38,11 @@ vector<uint8_t> RayTrace::Excute(const Screen& s)
         }
     }
 
-    RayGeneration();
+    Calculate();
     return colors;
 }
 
-void RayTrace::RayGeneration()
+void Tracer::Calculate()
 {
     auto& t = Task::GetInstance();
     auto w_cnt = t.WokerCnt();
@@ -90,8 +91,9 @@ vec3 InterpColor(const vec3& c0, const vec3& c1, const vec3& c2,
     return c;
 }
 
-bool RayTrace::RayCompute(uint32_t x, uint32_t y)
+bool Tracer::RayCompute(uint32_t x, uint32_t y)
 {
+    // Ray generation
     vec3 o;
     vec3 d;
     float uu = -cam.xmag + 2 * cam.xmag * (x + 0.5) / scr.w;
@@ -137,7 +139,7 @@ bool RayTrace::RayCompute(uint32_t x, uint32_t y)
     return hit;
 }
 
-void RayTrace::RayShading(uint16_t x, uint16_t y)
+void Tracer::RayShading(uint16_t x, uint16_t y)
 {
     colors[(y * scr.w + x) * 3 + 0] = 255;
 }
