@@ -9,37 +9,36 @@ using namespace alg;
 
 void Tracer::ProcessCamera()
 {
-    auto c = model->GetCam();
-    up = normalize(vec3(c.m[1])); // look up
-    f = normalize(vec3(c.m[2]));  // look forward
-    l = vec3(c.m[3]);
+    auto cam = model->GetCam();
+    up = normalize(vec3(cam.m[1])); // look up
+    f = normalize(vec3(cam.m[2]));  // look forward
+    l = vec3(cam.m[3]);
 
     w = normalize((l - f));
     u = normalize(cross(up, f));
     v = cross(f, u);
+
+    // use cam aspect ratio
+    if (cam.type == "perspective") {
+        cam.ymag = cam.znear * tan(cam.yfov / 2);
+        cam.xmag = cam.ymag * cam.aspectRatio;
+    }
+    else {
+        cam.xmag = cam.ymag * scr.w / scr.h;
+    }
 }
 
-vector<uint8_t> Tracer::Excute(const Screen& s)
+void Tracer::Excute(const Screen& s)
 {
     if (s.h <= 0 && s.w <= 0) {
-        return colors;
+        // throw ("");
     } else {
-        ProcessCamera();
         scr = s;
-        colors.clear();
-        colors.resize(s.h * s.w * 3);
-
-        // use cam aspect ratio
-        if (cam.type == "perspective") {
-            cam.ymag = cam.znear * tan(cam.yfov / 2);
-            cam.xmag = cam.ymag * cam.aspectRatio;
-        } else {
-            cam.xmag = cam.ymag * s.w / s.h;
-        }
+        pixels.clear();
+        pixels.resize(s.h * s.w);
+        ProcessCamera();
     }
-
     Calculate();
-    return colors;
 }
 
 void Tracer::Calculate()
@@ -51,8 +50,6 @@ void Tracer::Calculate()
             // use the number of pixels on the y-axis to parallel cal
             for (uint16_t y = i * h; y < (i + 1) * h; y++) {
                 for (uint16_t x = 0; x < scr.w; x++) {
-                    float uu = -cam.xmag + 2 * cam.xmag * (x + 0.5) / scr.w;
-                    float vv = -cam.ymag + 2 * cam.ymag * (y + 0.5) / scr.h;
                     if (RayCompute(x, y)) {
                         RayShading(x, y);
                     }
@@ -81,6 +78,23 @@ void Tracer::Calculate()
         }
     }*/
 }
+std::pair<ry::vec3, ry::vec3> Tracer::RayGeneration(uint32_t x, uint32_t y)
+{
+    vec3 o, d;
+    auto cam = model->GetCam();
+    float uu = -cam.xmag + 2 * cam.xmag * (x + 0.5) / scr.w;
+    float vv = -cam.ymag + 2 * cam.ymag * (y + 0.5) / scr.h;
+    if (cam.type == "perspective") {
+        o = l;
+        d = -cam.znear * f + u * uu + v * vv;
+    }
+    else {
+        o = l + u * uu + v * vv;
+        d = w;
+    }
+    return { o, d };
+}
+
 vec3 InterpColor(const vec3& c0, const vec3& c1, const vec3& c2,
     float b0, float b1, float b2) {
     vec3 c;
@@ -93,24 +107,21 @@ vec3 InterpColor(const vec3& c0, const vec3& c1, const vec3& c2,
 
 bool Tracer::RayCompute(uint32_t x, uint32_t y)
 {
-    // Ray generation
-    vec3 o;
-    vec3 d;
-    float uu = -cam.xmag + 2 * cam.xmag * (x + 0.5) / scr.w;
-    float vv = -cam.ymag + 2 * cam.ymag * (y + 0.5) / scr.h;
-    if (cam.type == "perspective") {
-        o = l;
-        d = -cam.znear * f + u * uu + v * vv;
-    } else {
-        o = l + u * uu + v * vv;
-        d = w;
-    }
+    auto [o, d] = RayGeneration(x, y);
+    auto cam = model->GetCam();
+
     bool hit = false;
     int tri = -1;
     float t, g_u, g_v;
     float min_t = numeric_limits<float>::max();
-    for (int i = 0; i < input->size(); i ++) {
-        if(Moller_Trumbore(o, d, (*input)[i].pos[0], (*input)[i].pos[1], (*input)[i].pos[2], t, g_u, g_v)) {
+
+    const auto pos = model->GetPosition();
+    const auto idx = model->GetIndex();
+    for (int i = 0; i < pos.size(); i+=3) {
+        const vec3& a = pos[idx[i]]; // 3 vert of tri
+        const vec3& b = pos[idx[i + 1]];
+        const vec3& c = pos[idx[i + 2]];
+        if(Moller_Trumbore(o, d, a, b, c, t, g_u, g_v)) {
             if (cam.type == "perspective" || t > cam.znear && t < cam.zfar) {
                 // now just orthographic can do depth test 
                 if (t < min_t) {
@@ -121,7 +132,7 @@ bool Tracer::RayCompute(uint32_t x, uint32_t y)
             }
         }
     }
-    if (hit) {
+    /*if (hit) {
         auto tr = (*input)[tri];
         auto color = tr.color;// use g to cal color
         vec3 c0(color[0][0] / 255.0f, color[0][1] / 255.0f, color[0][2] / 255.0f );
@@ -132,14 +143,14 @@ bool Tracer::RayCompute(uint32_t x, uint32_t y)
         auto l = normalize(vec3(lgt.m[3])  - (o + d * min_t));
         auto n = normalize(cross(tr.pos[1] - tr.pos[0], tr.pos[2] - tr.pos[0]));
         auto v = LambertianShading(final, lgt.intensity, l, n);
-        colors[(y * scr.w + x) * 3 + 0] = v[0];
+        pixels[(y * scr.w + x) * 3 + 0] = v[0];
         colors[(y * scr.w + x) * 3 + 1] = v[1];
         colors[(y * scr.w + x) * 3 + 2] = v[2];
-    }
+    }*/
     return hit;
 }
 
 void Tracer::RayShading(uint16_t x, uint16_t y)
 {
-    colors[(y * scr.w + x) * 3 + 0] = 255;
+    // colors[(y * scr.w + x) * 3 + 0] = 255;
 }

@@ -86,9 +86,11 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
 {
     const auto idx = move(ParseVertIdx(p));
     const auto tex = move(ParseTexTure(p));
-    const auto nor = move(ParseNormal(p));
+    auto nor = move(ParseNormal(p));
     const auto col = move(ParseVertColor(p));
-    const auto pos = move(ParsePosition(p));
+    auto pos = move(ParsePosition(p));
+    assert(normal.size() == position.size());
+
     // simple get one texture
     const auto& image = model.images[0];
     const unsigned char* pixels = image.image.data();
@@ -96,42 +98,25 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
     int h = image.height;
     int comp = image.component;
 
-    // final parse
-    /*for (size_t i = 0; i < pos.size(); ++i) {
-        if (tex.size()) {
-            auto u = tex[i * 2 + 0];
-            auto v = tex[i * 2 + 1];
-            int x = int(u * (w - 1));
-            int y = int((1.0f - v) * (h - 1)); // ·­×ªV
-            int idx = (y * w + x) * comp;
-            vertices[i].color[0] = pixels[idx + 0];
-            vertices[i].color[1] = pixels[idx + 1];
-            vertices[i].color[2] = pixels[idx + 2];
-        } else {
-            vertices[i].texcoord[0] = vertices[i].texcoord[1] = 0.0f;
-        }
-    }*/
-
-    // change to tri
-    /*mat3 n_m = transpose(inverse(mat3(m)));
+    // apply trans
+    mat3 n_m = transpose(inverse(mat3(m)));
     for (auto i = 0; i < pos.size(); i += 3) {
-        for (int j = 0; j < 3; j++) {
-            toTri[i / 3].pos[0 + j] = m * vec4(vertices[indices[i + j]].position, 1.0f);
-            // toTri[i / 3].color[0 + j] = vertices[indices[i + j]].color;
-            toTri[i / 3].normal[0 + j] = normalize(n_m * vertices[indices[i + j]].normal);
-            if (texcoords) {
-                toTri[i / 3].color[j][0] = vertices[indices[i + j]].color[0];
-                toTri[i / 3].color[j][1] = vertices[indices[i + j]].color[1];
-                toTri[i / 3].color[j][2] = vertices[indices[i + j]].color[2];
-            }
-        }
-    }*/
+        pos[i] = m * vec4(pos[i], 1.0f);
+        nor[i] = normalize(n_m * nor[i]);
+    }
+
+    // keep result
+    index.insert(index.end(), idx.begin(), idx.end());
+    texture.insert(texture.end(), tex.begin(), tex.end());
+    normal.insert(normal.end(), nor.begin(), nor.end());
+    vertColor.insert(vertColor.end(), col.begin(), col.end());
+    position.insert(position.end(), pos.begin(), pos.end());
 }
 
 vector<uint32_t> Loader::ParseVertIdx(const Primitive& p)
 {
     vector<uint32_t> res;
-    if (p.indices >= 0) {
+    if (p.indices < 0) {
         return res;
     }
     const auto& acc = model.accessors[p.indices];

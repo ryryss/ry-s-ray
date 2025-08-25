@@ -6,15 +6,17 @@
 class Loader {
 public:
     bool LoadFromFile(const std::string& filepath);
-
-    std::vector<ry::Triangle>& GetTriangles() {
-        return tris;
-    }
-    ry::Camera& GetCam() {
+    inline ry::Camera& GetCam() {
         return cam;
     }
-    ry::Light& GetLgt() {
+    inline ry::Light& GetLgt() {
         return lgt;
+    }
+    inline const std::vector<ry::vec3>& GetPosition() {
+        return position;
+    }
+    inline const std::vector<uint32_t>& GetIndex() {
+        return index;
     }
 private:
     void ParsePrimitive(const tinygltf::Primitive& p, const ry::mat4& m);
@@ -33,10 +35,15 @@ private:
     ry::mat4 GetNodeMat(int num);
 
     tinygltf::Model model;
-    std::vector<ry::Triangle> tris;
     std::vector<ry::Node> nodes;
     std::vector<uint32_t> roots;
     ry::Camera cam;
     ry::Light lgt;
+
+    std::vector<uint32_t> index;
+    std::vector<ry::vec2> texture;
+    std::vector<ry::vec3> normal;
+    std::vector<ry::vec4> vertColor;
+    std::vector<ry::vec3> position;
 };
 #endif
