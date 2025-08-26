@@ -19,17 +19,23 @@
 #include <glm/gtx/string_cast.hpp>
 
 namespace ry {
-using vec3 = glm::vec3; // can ez change mat lib 
+using vec3 = glm::vec3; // can ez change mat lib
+using vec2 = glm::vec2;
+using vec4 = glm::vec4;
 using mat4 = glm::mat4;
 
 struct Vertex {
-    vec3 position;
-    vec3 color;
+    vec3 pos;
+    vec4 color;
+    vec3 normal;
+    vec2 texcoord;
 };
 
 struct Triangle {
-    vec3 pos[3];
-    vec3 color[3];
+    vec4 color; // by center of gravity coordinates
+    uint32_t idx[3]; // use for  model vertices
+    float u;
+    float v;
 };
 
 struct Node {
@@ -57,6 +63,7 @@ struct Camera : public Node {
 
 struct Light : public Node {
     double intensity = 0.0;
+    vec3 color;
 
     Light() {};
     Light(const Node& other) : Node(other) {};

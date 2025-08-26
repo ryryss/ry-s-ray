@@ -23,7 +23,16 @@ namespace alg {
 bool Moller_Trumbore(const ry::vec3& o, const ry::vec3& d, const ry::vec3& a,
     const ry::vec3& b, const ry::vec3& c, float& t, float& g_u, float& g_v);
 
-// color = material_color × light_intensity × max(0, n·l)
-// void Lambertian();
+/**
+ * @brief Lambertian Shading.
+ *
+ * @param albedo    [in] The diffuse coefficient, or the surface color.
+ * @param intensity [in] The intensity of the light source.
+ * @param d         [in] The direction of light.
+ * @param n         [in] The surface normal.
+ * 
+ * @return the pixel color.
+ */
+ry::vec4 LambertianShading(const ry::vec4& albedo, float intensity, const ry::vec3& d, const ry::vec3& n);
 }
 #endif
