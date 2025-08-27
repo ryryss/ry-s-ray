@@ -1,4 +1,4 @@
-# ry-s-ray
+# ry‘s ray
 ry is learning ray trace.
 
 Simple project focused on verifying ray tracing algorithms using only CPU-based computation.
@@ -25,3 +25,6 @@ Simple project focused on verifying ray tracing algorithms using only CPU-based 
 
 ## Test File
 see https://github.com/KhronosGroup/glTF-Sample-Models
+
+![](rendering effect/v1.0.1.png)
+

@@ -182,7 +182,7 @@ void Loader::ParseTexTure(const Primitive& p, vector<Vertex>& vert)
             float u = vert[i].texcoord[0];
             float v = vert[i].texcoord[1];
             int x = int(u * (w - 1));
-            int y = int((1.0f - v) * (image.height - 1)); // reverse
+            int y = int(v * (image.height - 1));// int((1.0f - v) * (image.height - 1)); // reverse
             int idx = (y * w + x) * image.component;
 
             vert[i].color.r = pixels[idx + 0] / 255.0f;
