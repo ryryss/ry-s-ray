@@ -5,7 +5,7 @@ using namespace glm;
 using namespace std;
 
 bool alg::Moller_Trumbore(const vec3& o, const vec3& d, const vec3& a,
-    const vec3& b, const vec3& c, float& t, float& g_u, float& g_v)
+    const vec3& b, const vec3& c, float& t, float& gu, float& gv)
 {
     // tri base vec
     vec3 e1 = b - a;
@@ -31,13 +31,24 @@ bool alg::Moller_Trumbore(const vec3& o, const vec3& d, const vec3& a,
     }
 
     t = dot(e2, s2) * ted;
-    g_u = u;
-    g_v = v;
+    gu = u;
+    gv = v;
     return true;
 }
 
-vec4 alg::LambertianShading(const vec4& albedo, float intensity, const vec3& d, const vec3& n)
+vec4 alg::LambertianShading(const vec4& kd, float intensity, const vec3& l, const vec3& n)
 {
-    auto lambert_factor = dot(n, d);
-    return albedo * intensity * glm::max(0.0f, lambert_factor);
+    // L = kd * I * max(0, n ¡¤ l)
+    auto lambert_factor = dot(n, l);
+    return kd * intensity * glm::max(0.0f, lambert_factor);
+}
+
+vec4 alg::BlinnPhongShading(const vec4& kd, const vec4& ks, float intensity,
+    const vec3& l, const vec3& n, const vec3& v)
+{
+    // L = kd * I * max(0, n ¡¤ l) + ks * I * max(0, n ¡¤ h)^p
+    uint16_t p = 8;
+    auto h = normalize(v + l);
+    float f = pow(glm::max(0.0f, dot(n, h)), p);
+    return LambertianShading(kd, 1.0/*lgt.intensity * distance*/, l, n) + ks * intensity * f;
 }

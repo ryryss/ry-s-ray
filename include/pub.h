@@ -26,16 +26,15 @@ using mat4 = glm::mat4;
 
 struct Vertex {
     vec3 pos;
-    vec4 color;
+    vec4 color = vec4(1.0);
     vec3 normal;
-    vec2 texcoord;
+    vec2 uv;
 };
 
 struct Triangle {
-    vec4 color; // by center of gravity coordinates
+    vec4 color;
     uint32_t idx[3]; // use for  model vertices
-    float u;
-    float v;
+    vec3 bary; // barycentric
 };
 
 struct Node {

@@ -108,7 +108,7 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
     }
     vertices.insert(vertices.end(), vert.begin(), vert.end());
     cout << "parse result : vertices size = "  << vertices.size()
-        << "triangles size = " << triangles.size() << endl;
+        << " triangles size = " << triangles.size() << endl;
 }
 
 vector<uint32_t> Loader::ParseVertIdx(const Primitive& p)
@@ -174,23 +174,22 @@ void Loader::ParseTexTure(const Primitive& p, vector<Vertex>& vert)
                 uv.x = ptr[0] / 65535.0f;
                 uv.y = ptr[1] / 65535.0f;
             }
-            vert[i].texcoord = uv;
-            // direct apply uv
+            vert[i].uv = uv;
+            //direct apply uv
             const auto& image = model.images[0]; // simple get first texture
             int w = image.width;
             const unsigned char* pixels = image.image.data();
-            float u = vert[i].texcoord[0];
-            float v = vert[i].texcoord[1];
+            float u = vert[i].uv[0];
+            float v = vert[i].uv[1];
             int x = int(u * (w - 1));
-            int y = int(v * (image.height - 1));// int((1.0f - v) * (image.height - 1)); // reverse
+            int y = int(v * (image.height - 1)); // no need reverse
+            // int((1.0f - v) * (image.height - 1));
             int idx = (y * w + x) * image.component;
 
             vert[i].color.r = pixels[idx + 0] / 255.0f;
             vert[i].color.g = pixels[idx + 1] / 255.0f;
             vert[i].color.b = pixels[idx + 2] / 255.0f;
             vert[i].color.a = (image.component == 4) ? pixels[idx + 3] / 255.0f : 1.0f;
-        } else {
-            vert[i].color = vec4(1.0);
         }
     }
 }
@@ -279,7 +278,7 @@ void Loader::ParseVertColor(const Primitive& p, vector<Vertex>& vert)
                 c.a = ptr[3] / 65535.0f;
             }
         }
-        vert[i].color *= c; // if have texture simple process vert color;
+        vert[i].color *= c; // if have texture use "*" simple process vert color;
     }
 }
 

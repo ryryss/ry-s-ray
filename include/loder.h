@@ -18,6 +18,9 @@ public:
     inline std::vector <ry::Vertex>& GetVertices() {
         return vertices;
     }
+    inline tinygltf::Image GetTexTureImg() {
+        return model.images[0]; // TODO
+    }
 private:
     std::vector<uint32_t> ParseVertIdx(const tinygltf::Primitive& p);
     void ParsePrimitive(const tinygltf::Primitive& p, const ry::mat4& m);

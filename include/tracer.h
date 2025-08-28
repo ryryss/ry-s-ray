@@ -18,6 +18,8 @@ private:
 	std::pair<ry::vec3, ry::vec3> RayGeneration(uint32_t x, uint32_t y);
 	bool RayCompute(uint32_t x, uint32_t y);
 	void RayShading(uint16_t x, uint16_t y, ry::Triangle& t, const ry::vec3& hitPoint);
+	ry::vec4 Tracer::SampleTexture(const ry::vec3& bary, const ry::vec2& uv0, 
+		const ry::vec2& uv1, const ry::vec2& uv2);
 
 	ry::Screen scr;
 	std::vector<ry::vec4> pixels;

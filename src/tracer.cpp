@@ -104,7 +104,7 @@ bool Tracer::RayCompute(uint32_t x, uint32_t y)
     // 2、find first object hit by ray and its surface normal n
     auto& cam = model->GetCam();
     Triangle hTri; // hit this tri
-    float t, g_u, g_v;
+    float t, gu, gv;
     float min_t = numeric_limits<float>::max();
 
     const auto& ts = model->GetTriangles();
@@ -113,14 +113,13 @@ bool Tracer::RayCompute(uint32_t x, uint32_t y)
         const vec3& a = vs[tri.idx[0]].pos;
         const vec3& b = vs[tri.idx[1]].pos;
         const vec3& c = vs[tri.idx[2]].pos;
-        if(Moller_Trumbore(o, d, a, b, c, t, g_u, g_v)) {
+        if(Moller_Trumbore(o, d, a, b, c, t, gu, gv)) {
             if (cam.type == "perspective" || t > cam.znear && t < cam.zfar) {
                 // now just orthographic can do depth test 
                 if (t < min_t) {
                     min_t = t;
                     hTri = tri;
-                    hTri.u = g_u;
-                    hTri.v = g_v;
+                    hTri.bary = {1 - gu - gv, gu, gv};
                 }
             }
         }
@@ -132,6 +131,8 @@ bool Tracer::RayCompute(uint32_t x, uint32_t y)
     return min_t < numeric_limits<float>::max();
 }
 
+// Ambient Shading
+vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f; // ka * Ia, A = env light
 void Tracer::RayShading(uint16_t x, uint16_t y, Triangle& t, const vec3& hitPoint)
 {
     const auto& vs = model->GetVertices();
@@ -141,9 +142,27 @@ void Tracer::RayShading(uint16_t x, uint16_t y, Triangle& t, const vec3& hitPoin
     const auto& a = vs[t.idx[0]]; // 3 vert of tri
     const auto& b = vs[t.idx[1]];
     const auto& c = vs[t.idx[2]];
-    auto n = normalize(cross(b.pos - a.pos, c.pos - a.pos));
+    auto n = normalize(t.bary[0] * a.normal + t.bary[1] * b.normal + t.bary[2] * c.normal);
 
-    t.color = (1 - t.u - t.v) * a.color + t.u * b.color + t.v * c.color;
-    auto asd = LambertianShading(t.color, 1.0/*lgt.intensity * distance*/, l, n);
-    pixels[y * scr.w + x] = asd;
+    // t.color = t.bary[0] * a.color + t.bary[1] * b.color + t.bary[2] * c.color;
+    t.color = SampleTexture(t.bary, a.uv, b.uv, c.uv);
+    auto& cam = model->GetCam();
+    auto v = normalize(vec3(cam.m[3]) - hitPoint);
+    pixels[y * scr.w + x] = A + BlinnPhongShading(t.color, t.color, 1.0, l, n, v);
+}
+
+vec4 Tracer::SampleTexture(const vec3& bary, const vec2& uv0, const vec2& uv1, const vec2& uv2)
+{
+    vec2 uv = bary[0] * uv0 + bary[1] * uv1 + bary[2] * uv2;
+    const auto& image = model->GetTexTureImg();
+    const auto* pixel = image.image.data();
+    uint32_t x = uv[0] * (image.width - 1);
+    uint32_t y = uv[1] * (image.height - 1); // no need reverse
+    // int((1.0f - v) * (image.height - 1));
+    int idx = (y * image.width + x) * image.component;
+
+    return { pixel[idx + 0] / 255.0f,
+             pixel[idx + 1] / 255.0f,
+             pixel[idx + 2] / 255.0f,
+            (image.component == 4) ? pixel[idx + 3] / 255.0f : 1.0f };
 }

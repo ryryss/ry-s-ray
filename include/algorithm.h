@@ -22,17 +22,30 @@ namespace alg {
  */
 bool Moller_Trumbore(const ry::vec3& o, const ry::vec3& d, const ry::vec3& a,
     const ry::vec3& b, const ry::vec3& c, float& t, float& g_u, float& g_v);
-
 /**
  * @brief Lambertian Shading.
  *
- * @param albedo    [in] The diffuse coefficient, or the surface color.
+ * @param kd        [in] The diffuse coefficient, or the surface color.
  * @param intensity [in] The intensity of the light source.
- * @param d         [in] The direction of light.
+ * @param l         [in] The direction of light.
  * @param n         [in] The surface normal.
  * 
  * @return the pixel color.
  */
-ry::vec4 LambertianShading(const ry::vec4& albedo, float intensity, const ry::vec3& d, const ry::vec3& n);
+ry::vec4 LambertianShading(const ry::vec4& kd, float intensity, const ry::vec3& d, const ry::vec3& n);
+/**
+ * @brief Blinn-Phong Shading.
+ *
+ * @param kd        [in] The diffuse coefficient, or the surface color.
+ * @param ks        [in] The specular coefficient, or the specular color of the surface.
+ * @param intensity [in] The intensity of the light source.
+ * @param l         [in] The direction of hitpoint to light.
+ * @param n         [in] The surface normal.
+ * @param v         [in] The direction of hitpoint to eye(camera).
+ *
+ * @return the pixel color.
+ */
+ry::vec4 BlinnPhongShading(const ry::vec4& kd, const ry::vec4& ks, float intensity,
+    const ry::vec3& l, const ry::vec3& n, const ry::vec3& v);
 }
 #endif
