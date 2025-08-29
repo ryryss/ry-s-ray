@@ -2,7 +2,7 @@
 using namespace std;
 
 Task::Task() : stop(false) {
-    size_t cores = std::thread::hardware_concurrency();
+    size_t cores = std::thread::hardware_concurrency() - 1;
     if (cores <= 0) {
         cores = 2;
     }

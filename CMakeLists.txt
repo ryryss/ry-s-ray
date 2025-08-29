@@ -3,7 +3,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 project("ry-s-ray" LANGUAGES CXX)
 
-option(DEBUG "Debug mode" OFF)
+option(CMAKE_DEBUG "custom macro just for cmake debug" OFF)
 
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "Please select another build directory")
@@ -52,7 +52,7 @@ target_link_libraries(${PROJECT_NAME}
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${HEADS})
 
-# after build
+# after build for vs
 set(EXE_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 set(GLFW_DLL "${GLFW_BUILD_DIR}/src/Release/glfw3.dll")
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
@@ -61,9 +61,10 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
     COMMENT "Copying glfw3.dll to output directory"
 )
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 
 # print all variable for debug
-if(DEBUG)
+if(CMAKE_DEBUG)
     get_cmake_property(_variableNames VARIABLES)
     list(SORT _variableNames)
     foreach(_variableNames ${_variableNames})

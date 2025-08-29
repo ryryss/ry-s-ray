@@ -19,45 +19,62 @@
 #include <glm/gtx/string_cast.hpp>
 
 namespace ry {
-using vec3 = glm::vec3; // can ez change mat lib 
+using vec3 = glm::vec3; // can ez change mat lib
+using vec2 = glm::vec2;
+using vec4 = glm::vec4;
 using mat4 = glm::mat4;
 
 struct Vertex {
-    vec3 position;
-    vec3 color;
+    vec3 pos;
+    vec4 color = vec4(1.0);
+    vec3 normal;
+    vec2 uv;
 };
 
 struct Triangle {
-    vec3 pos[3];
-    vec3 color[3];
+    vec4 color;
+    uint32_t idx[3]; // use for  model vertices
+    vec3 bary; // barycentric
 };
 
 struct Node {
-    Node* p = nullptr; // parent, no where use this at now
+    Node* p = nullptr;        // parent, no where use this at now
     std::string name;
     mat4 m = mat4(1.0f);
-    std::vector<uint32_t> c; // children
+    std::vector<uint32_t> c;  // children
+    int num = -1;             // or call index, can find it use model.nodes[num]
+    std::string type = "node";
 };
 
-struct Camera
-{
-    std::string type = "perspective";
-    std::string name;
-    mat4 m = mat4(1.0f);
-
+struct Camera : public Node {
     float znear = 0.0;
     float zfar = 0.0;
 
     // perspective
-    double aspectRatio{ 0.0 };  // min > 0
-    double yfov{ 0.0 };         // required. min > 0
+    double aspectRatio = 0.0;  // min > 0
+    double yfov = 0.0;         // required. min > 0
     // orthographic
-    double xmag{ 0.0 };   // required. must not be zero.
-    double ymag{ 0.0 };   // required. must not be zero.
+    double xmag = 0.0;   // required. must not be zero.
+    double ymag = 0.0;   // required. must not be zero.
+
+    vec3 w; // forward
+    vec3 e; // location of eye(cam)
+    vec3 v; // cam base up
+    vec3 u; // cam base right
+
+    Camera() {};
+    Camera(const Node& other) : Node(other) {};
 };
 
-struct Screen
-{
+struct Light : public Node {
+    double intensity = 0.0;
+    vec3 color;
+
+    Light() {};
+    Light(const Node& other) : Node(other) {};
+};
+
+struct Screen {
     uint16_t w = 0;
     uint16_t h = 0;
 };
@@ -76,7 +93,6 @@ inline void PrintVec(vec3 v)
 
 inline void PrintMat4(mat4 m)
 {
-    // col major
     /*for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
             if (std::fabs(m[j][i]) < 1e-6f) {
@@ -87,6 +103,8 @@ inline void PrintMat4(mat4 m)
         }
         std::cout << std::endl;
     }*/
+
+    // be care glm is col major
     std::cout << glm::to_string(m) << std::endl;
 }
 
