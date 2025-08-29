@@ -31,9 +31,9 @@ see https://github.com/KhronosGroup/glTF-Sample-Models
 
 v1.0.1
 
-![](rendering effect/v1.0.1.png)
+![](rendering%20effect/v1.0.1.png)
 
 v1.0.2
 
-![](rendering effect/v1.0.2.png)
+![](rendering%20effect/v1.0.2.png)
 
