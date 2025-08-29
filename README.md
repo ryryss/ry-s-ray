@@ -21,10 +21,19 @@ Simple project focused on verifying ray tracing algorithms using only CPU-based 
 
 ## Version
 - v1.0.0 use the first camera  and the first light found to render target
-- v1.0.1 multi-primitive, light, texture support
+- v1.0.1 multi-primitive, light,  simple texture support
+- v1.0.2 simple shadow support
 
 ## Test File
 see https://github.com/KhronosGroup/glTF-Sample-Models
 
+
+
+v1.0.1
+
 ![](rendering effect/v1.0.1.png)
+
+v1.0.2
+
+![](rendering effect/v1.0.2.png)
 
