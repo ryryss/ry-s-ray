@@ -50,13 +50,18 @@ void Loader::ParseCam(int num)
     const auto& c = model.cameras[n.camera];
     cam = ry::Camera(node);
     cam.type = c.type;
-
-    cam.w = -normalize(vec3(cam.m[2]));  // look forward
+    // use camera world coordinate to direct get base vector
+    // for do this must ensure that all node use Y-up (see Blender export options: trans -> +Y up)
     cam.e = vec3(cam.m[3]);
-    // still to do something for Blender exports gltf files with the y-up option
-    cam.u = normalize(cross(cam.w, vec3(0, 1, 0)));
-    cam.v = cross(cam.u, cam.w);
-
+    cam.w = -normalize(vec3(cam.m[2]));
+    cam.v = normalize(cam.m[1]);
+    cam.u = normalize(cam.m[0]);
+    /*
+       some book like¡¶Ray Tracing in One Weekend¡·will use : 
+       cam.w = normalize(cam.e - vec3(0, 0, -1));
+       cam.u = normalize(cross(cam.w, vec3(0, 1, 0)));
+       cam.v = cross(cam.u, cam.w);
+    */
     if (c.type == "perspective") {
         cam.znear = c.perspective.znear;
         cam.zfar = c.perspective.zfar;
