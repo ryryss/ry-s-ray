@@ -10,15 +10,7 @@ using namespace alg;
 void Tracer::ProcessCamera()
 {
     auto& cam = model->GetCam();
-    up = normalize(vec3(cam.m[1])); // look up
-    f = normalize(vec3(cam.m[2]));  // look forward
-    l = vec3(cam.m[3]);
-
-    w = normalize((l - f));
-    u = normalize(cross(up, f));
-    v = cross(f, u);
-
-    // use cam aspect ratio
+    // use cam aspect ratio TODO: move function to loder
     if (cam.type == "perspective") {
         cam.ymag = cam.znear * tan(cam.yfov / 2);
         cam.xmag = cam.ymag * cam.aspectRatio;
@@ -87,11 +79,11 @@ std::pair<ry::vec3, ry::vec3> Tracer::RayGeneration(uint32_t x, uint32_t y)
     float uu = -cam.xmag + 2 * cam.xmag * (x + 0.5) / scr.w;
     float vv = -cam.ymag + 2 * cam.ymag * (y + 0.5) / scr.h;
     if (cam.type == "perspective") {
-        o = l;
-        d = -cam.znear * f + u * uu + v * vv;
+        o = cam.e;
+        d = -cam.znear * cam.w + cam.u * uu + cam.v * vv;
     } else {
-        o = l + u * uu + v * vv;
-        d = w;
+        o = cam.e + cam.u * uu + cam.v * vv;
+        d = cam.w;
     }
     return { o, d };
 }
@@ -137,18 +129,39 @@ void Tracer::RayShading(uint16_t x, uint16_t y, Triangle& t, const vec3& hitPoin
 {
     const auto& vs = model->GetVertices();
     auto& lgt = model->GetLgt();
+    float distance = length(vec3(lgt.m[3]) - hitPoint);
     auto l = normalize(vec3(lgt.m[3]) - hitPoint);
 
     const auto& a = vs[t.idx[0]]; // 3 vert of tri
     const auto& b = vs[t.idx[1]];
     const auto& c = vs[t.idx[2]];
-    auto n = normalize(t.bary[0] * a.normal + t.bary[1] * b.normal + t.bary[2] * c.normal);
-
+    vec3 n = normalize(t.bary[0] * a.normal + t.bary[1] * b.normal + t.bary[2] * c.normal);
+    if (ShadowShading(hitPoint, n, l, distance)) {
+        pixels[y * scr.w + x] = A;
+        return;
+    }
     // t.color = t.bary[0] * a.color + t.bary[1] * b.color + t.bary[2] * c.color;
     t.color = SampleTexture(t.bary, a.uv, b.uv, c.uv);
     auto& cam = model->GetCam();
     auto v = normalize(vec3(cam.m[3]) - hitPoint);
     pixels[y * scr.w + x] = A + BlinnPhongShading(t.color, t.color, 1.0, l, n, v);
+}
+
+bool Tracer::ShadowShading(const vec3& hitPoint, const vec3& n, const vec3& l, const float dis)
+{
+    vec3 moveHit = hitPoint + n * 1e-5f;
+    float t, gu, gv;
+    const auto& ts = model->GetTriangles();
+    const auto& vs = model->GetVertices();
+    for (auto& tri : ts) {
+        const vec3& a = vs[tri.idx[0]].pos;
+        const vec3& b = vs[tri.idx[1]].pos;
+        const vec3& c = vs[tri.idx[2]].pos;
+        if (Moller_Trumbore(moveHit, l, a, b, c, t, gu, gv) && t > 1e-8 && t < dis) {
+            return true;
+        }
+    }
+    return false;
 }
 
 vec4 Tracer::SampleTexture(const vec3& bary, const vec2& uv0, const vec2& uv1, const vec2& uv2)

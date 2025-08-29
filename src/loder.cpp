@@ -50,6 +50,13 @@ void Loader::ParseCam(int num)
     const auto& c = model.cameras[n.camera];
     cam = ry::Camera(node);
     cam.type = c.type;
+
+    cam.w = -normalize(vec3(cam.m[2]));  // look forward
+    cam.e = vec3(cam.m[3]);
+    // still to do something for Blender exports gltf files with the y-up option
+    cam.u = normalize(cross(cam.w, vec3(0, 1, 0)));
+    cam.v = cross(cam.u, cam.w);
+
     if (c.type == "perspective") {
         cam.znear = c.perspective.znear;
         cam.zfar = c.perspective.zfar;
@@ -107,8 +114,8 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
         triangles[tIdx + tSize].idx[2] = idx[i + 2] + vSize;
     }
     vertices.insert(vertices.end(), vert.begin(), vert.end());
-    cout << "parse result : vertices size = "  << vertices.size()
-        << " triangles size = " << triangles.size() << endl;
+    cout << "parse result : vertices size = "  << vert.size()
+        << " triangles size = " << idx.size() / 3 << endl;
 }
 
 vector<uint32_t> Loader::ParseVertIdx(const Primitive& p)
