@@ -80,7 +80,7 @@ std::pair<ry::vec3, ry::vec3> Tracer::RayGeneration(uint32_t x, uint32_t y)
     float vv = -cam.ymag + 2 * cam.ymag * (y + 0.5) / scr.h;
     if (cam.type == "perspective") {
         o = cam.e;
-        d = -cam.znear * cam.w + cam.u * uu + cam.v * vv;
+        d = cam.znear * cam.w + cam.u * uu + cam.v * vv;
     } else {
         o = cam.e + cam.u * uu + cam.v * vv;
         d = cam.w;
@@ -144,7 +144,8 @@ void Tracer::RayShading(uint16_t x, uint16_t y, Triangle& t, const vec3& hitPoin
     t.color = SampleTexture(t.bary, a.uv, b.uv, c.uv);
     auto& cam = model->GetCam();
     auto v = normalize(vec3(cam.m[3]) - hitPoint);
-    pixels[y * scr.w + x] = A + BlinnPhongShading(t.color, t.color, 1.0, l, n, v);
+    pixels[y * scr.w + x] = A + vec4(BlinnPhongShading(t.color, vec3(1.0, 1.0, 1.0), 1.0, l, n, v), 1.0);
+    // pixels[y * scr.w + x] = vec4(LambertianShading(t.color, 1.0/*lgt.intensity * distance*/, l, n), 1.0);
 }
 
 bool Tracer::ShadowShading(const vec3& hitPoint, const vec3& n, const vec3& l, const float dis)
@@ -169,6 +170,9 @@ vec4 Tracer::SampleTexture(const vec3& bary, const vec2& uv0, const vec2& uv1, c
     vec2 uv = bary[0] * uv0 + bary[1] * uv1 + bary[2] * uv2;
     const auto& image = model->GetTexTureImg();
     const auto* pixel = image.image.data();
+    if (pixel == nullptr) {
+        return vec4(1.0, 0, 0, 1.0);
+    }
     uint32_t x = uv[0] * (image.width - 1);
     uint32_t y = uv[1] * (image.height - 1); // no need reverse
     // int((1.0f - v) * (image.height - 1));
