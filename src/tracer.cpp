@@ -140,17 +140,17 @@ void Tracer::RayShading(uint16_t x, uint16_t y, Triangle& t, const vec3& hitPoin
         pixels[y * scr.w + x] = A;
         return;
     }
-    // t.color = t.bary[0] * a.color + t.bary[1] * b.color + t.bary[2] * c.color;
-    t.color = SampleTexture(t.bary, a.uv, b.uv, c.uv);
+    t.color = t.bary[0] * a.color + t.bary[1] * b.color + t.bary[2] * c.color;
+    // t.color = SampleTexture(t.bary, a.uv, b.uv, c.uv);
     auto& cam = model->GetCam();
     auto v = normalize(vec3(cam.m[3]) - hitPoint);
-    pixels[y * scr.w + x] = A + vec4(BlinnPhongShading(t.color, vec3(1.0, 1.0, 1.0), 1.0, l, n, v), 1.0);
+    pixels[y * scr.w + x] = A + vec4(BlinnPhongShading(t.color, vec3(0.2, 0.2, 0.2), 1.0, l, n, v), 1.0);
     // pixels[y * scr.w + x] = vec4(LambertianShading(t.color, 1.0/*lgt.intensity * distance*/, l, n), 1.0);
 }
 
 bool Tracer::ShadowShading(const vec3& hitPoint, const vec3& n, const vec3& l, const float dis)
 {
-    vec3 moveHit = hitPoint + n * 1e-5f;
+    vec3 moveHit = hitPoint + n * 1e-4f;
     float t, gu, gv;
     const auto& ts = model->GetTriangles();
     const auto& vs = model->GetVertices();

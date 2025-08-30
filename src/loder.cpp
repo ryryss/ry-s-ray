@@ -53,6 +53,7 @@ void Loader::ParseCam(int num)
     }
 
     if (num < 0) {
+        cout << "use default camera" << endl;
         cam.type = "orthographic";
         cam.znear = 0.001;
         cam.zfar = 100;
@@ -100,6 +101,7 @@ void Loader::ParseLgt(int num)
     }
 
     if (num < 0) {
+        cout << "use default light" << endl;
         lgt.m = translate(mat4(1.0), vec3(-5.0f, 10.0f, -5.0f));
     } else {
         const auto& n = model.nodes[num];
