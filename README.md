@@ -1,39 +1,44 @@
 # ry‘s ray
 ry is learning ray trace.
-
 Simple project focused on verifying ray tracing algorithms using only CPU-based computation.
 
+## Env
+This project requires the following third-party libraries:
+-  tinygltf
+-  glm
+-  glfw
+
 ## Features
-
 1、receive a simple glb/gltf input
-
 2、use the first camera  and the first light found to render target
-
 3、also only  the first found texture used  :)
+4、[TODO: reading *Physically Based Rendering*](https://github.com/mmp/pbr-book-website) 
 
 ## Hardware
-
  intel i7-8700
 
 ## Perf
-
 - v1.0.0 3000+ triangles take about 3 seconds to render on intel i7-8700
 
 ## Version
 - v1.0.0 use the first camera  and the first light found to render target
 - v1.0.1 multi-primitive, light,  simple texture support
 - v1.0.2 simple shadow support
+- v1.0.3 fix some bug
 
 ## Test File
-see https://github.com/KhronosGroup/glTF-Sample-Models
-
+See https://github.com/KhronosGroup/glTF-Sample-Models
 
 
 v1.0.1
 
+The color of the triangular face was directly used without interpolation.
+
 ![](rendering%20effect/v1.0.1.png)
 
-v1.0.2
+v1.0.3
 
-![](rendering%20effect/v1.0.2.png)
+The lighting still has a little bugs, missing the reflectivity coefficient provided by the materials.
+
+![](rendering%20effect/v1.0.3.png)
 

@@ -36,18 +36,18 @@ bool alg::Moller_Trumbore(const vec3& o, const vec3& d, const vec3& a,
     return true;
 }
 
-vec4 alg::LambertianShading(const vec4& kd, float intensity, const vec3& l, const vec3& n)
+vec3 alg::LambertianShading(const vec3& kd, float intensity, const vec3& l, const vec3& n)
 {
     // L = kd * I * max(0, n ¡¤ l)
     auto lambert_factor = dot(n, l);
     return kd * intensity * glm::max(0.0f, lambert_factor);
 }
 
-vec4 alg::BlinnPhongShading(const vec4& kd, const vec4& ks, float intensity,
+vec3 alg::BlinnPhongShading(const vec3& kd, const vec3& ks, float intensity,
     const vec3& l, const vec3& n, const vec3& v)
 {
     // L = kd * I * max(0, n ¡¤ l) + ks * I * max(0, n ¡¤ h)^p
-    uint16_t p = 8;
+    uint16_t p = 32;
     auto h = normalize(v + l);
     float f = pow(glm::max(0.0f, dot(n, h)), p);
     return LambertianShading(kd, 1.0/*lgt.intensity * distance*/, l, n) + ks * intensity * f;

@@ -36,6 +36,13 @@ bool Loader::LoadFromFile(const string& file)
             ParseLgt(i);
         }
     }
+
+    if (!model.cameras.size()) {
+        ParseCam(-1);
+    }
+    if (!model.lights.size()) {
+        ParseLgt(-1);
+    }
     return true;
 }
 
@@ -44,14 +51,36 @@ void Loader::ParseCam(int num)
     if (model.cameras.size() > 1) {
         throw("now just sup one cam");
     }
-    const auto& n = model.nodes[num];
-    const auto& node = nodes[num];
 
-    const auto& c = model.cameras[n.camera];
-    cam = ry::Camera(node);
-    cam.type = c.type;
+    if (num < 0) {
+        cout << "use default camera" << endl;
+        cam.type = "orthographic";
+        cam.znear = 0.001;
+        cam.zfar = 100;
+        cam.xmag = 3.65;
+        cam.ymag = 2.05;
+        cam.m = mat4(1.0);
+    } else {
+        const auto& n = model.nodes[num];
+        const auto& node = nodes[num];
+        const auto& c = model.cameras[n.camera];
+        cam = ry::Camera(node);
+        cam.type = c.type;
+        if (cam.type == "perspective") {
+            cam.znear = c.perspective.znear;
+            cam.zfar = c.perspective.zfar;
+            cam.yfov = c.perspective.yfov;
+            cam.aspectRatio = c.perspective.aspectRatio;
+        } else if (c.type == "orthographic") {
+            cam.znear = c.orthographic.znear;
+            cam.zfar = c.orthographic.zfar;
+            cam.xmag = c.orthographic.xmag;
+            cam.ymag = c.orthographic.ymag;
+        } else {
+            throw("cam info error");
+        }
+    }
     // use camera world coordinate to direct get base vector
-    // for do this must ensure that all node use Y-up (see Blender export options: trans -> +Y up)
     cam.e = vec3(cam.m[3]);
     cam.w = -normalize(vec3(cam.m[2]));
     cam.v = normalize(cam.m[1]);
@@ -61,20 +90,8 @@ void Loader::ParseCam(int num)
        cam.w = normalize(cam.e - vec3(0, 0, -1));
        cam.u = normalize(cross(cam.w, vec3(0, 1, 0)));
        cam.v = cross(cam.u, cam.w);
+       in this program, will cause errors
     */
-    if (c.type == "perspective") {
-        cam.znear = c.perspective.znear;
-        cam.zfar = c.perspective.zfar;
-        cam.yfov = c.perspective.yfov;
-        cam.aspectRatio = c.perspective.aspectRatio;
-    } else if (c.type == "orthographic") {
-        cam.znear = c.orthographic.znear;
-        cam.zfar = c.orthographic.zfar;
-        cam.xmag = c.orthographic.xmag;
-        cam.ymag = c.orthographic.ymag;
-    } else {
-        throw("cam info error");
-    }
 }
 
 void Loader::ParseLgt(int num)
@@ -82,15 +99,20 @@ void Loader::ParseLgt(int num)
     if (model.lights.size() > 1) {
         throw("now just sup one light");
     }
-    const auto& n = model.nodes[num];
-    const auto& node = nodes[num];
 
-    const auto& l = model.lights[n.light];
-    lgt = ry::Light(node);
-    lgt.type = l.type;
-    lgt.intensity = l.intensity;
-    lgt.color = {l.color[0], l.color[1], l.color[2]};
-    if (lgt.type == "") {
+    if (num < 0) {
+        cout << "use default light" << endl;
+        lgt.m = translate(mat4(1.0), vec3(-5.0f, 10.0f, -5.0f));
+    } else {
+        const auto& n = model.nodes[num];
+        const auto& node = nodes[num];
+
+        const auto& l = model.lights[n.light];
+        lgt = ry::Light(node);
+        lgt.type = l.type;
+        lgt.intensity = l.intensity;
+        lgt.color = { l.color[0], l.color[1], l.color[2] };
+        if (lgt.type == "") {}
     }
 }
 
@@ -175,13 +197,11 @@ void Loader::ParseTexTure(const Primitive& p, vector<Vertex>& vert)
                 const float* ptr = reinterpret_cast<const float*>(pData + i * stride);
                 uv.x = ptr[0];
                 uv.y = ptr[1];
-            }
-            else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+            } else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
                 const uint8_t* ptr = reinterpret_cast<const uint8_t*>(pData + i * stride);
                 uv.x = ptr[0] / 255.0f;
                 uv.y = ptr[1] / 255.0f;
-            }
-            else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+            } else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
                 const uint16_t* ptr = reinterpret_cast<const uint16_t*>(pData + i * stride);
                 uv.x = ptr[0] / 65535.0f;
                 uv.y = ptr[1] / 65535.0f;

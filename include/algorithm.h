@@ -32,7 +32,7 @@ bool Moller_Trumbore(const ry::vec3& o, const ry::vec3& d, const ry::vec3& a,
  * 
  * @return the pixel color.
  */
-ry::vec4 LambertianShading(const ry::vec4& kd, float intensity, const ry::vec3& d, const ry::vec3& n);
+ry::vec3 LambertianShading(const ry::vec3& kd, float intensity, const ry::vec3& d, const ry::vec3& n);
 /**
  * @brief Blinn-Phong Shading.
  *
@@ -45,7 +45,7 @@ ry::vec4 LambertianShading(const ry::vec4& kd, float intensity, const ry::vec3& 
  *
  * @return the pixel color.
  */
-ry::vec4 BlinnPhongShading(const ry::vec4& kd, const ry::vec4& ks, float intensity,
+ry::vec3 BlinnPhongShading(const ry::vec3& kd, const ry::vec3& ks, float intensity,
     const ry::vec3& l, const ry::vec3& n, const ry::vec3& v);
 }
 #endif

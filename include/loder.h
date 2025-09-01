@@ -19,7 +19,7 @@ public:
         return vertices;
     }
     inline tinygltf::Image GetTexTureImg() {
-        return model.images[0]; // TODO
+        return model.images.size() <= 0 ? tinygltf::Image() : model.images[0]; // TODO
     }
 private:
     std::vector<uint32_t> ParseVertIdx(const tinygltf::Primitive& p);
