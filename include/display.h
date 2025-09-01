@@ -11,7 +11,7 @@ public:
         glDeleteTextures(1, &texture);
         glfwTerminate();
     }
-    static Display& GetInstance(uint16_t width = 800, uint16_t height = 600, const char* title = "title") {
+    static Display& GetInstance(uint16_t width = 600*1.7777, uint16_t height = 600, const char* title = "title") {
         static Display instance(width, height, title);
         return instance;
     }
@@ -22,7 +22,7 @@ public:
         glBindTexture(GL_TEXTURE_2D, texture);
         // glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, pixels);
-
+        // set x y start from the bottom left 
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT);
 

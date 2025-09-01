@@ -80,7 +80,7 @@ std::pair<ry::vec3, ry::vec3> Tracer::RayGeneration(uint32_t x, uint32_t y)
     float vv = -cam.ymag + 2 * cam.ymag * (y + 0.5) / scr.h;
     if (cam.type == "perspective") {
         o = cam.e;
-        d = cam.znear * cam.w + cam.u * uu + cam.v * vv;
+        d = normalize(cam.znear * cam.w + cam.u * uu + cam.v * vv);
     } else {
         o = cam.e + cam.u * uu + cam.v * vv;
         d = cam.w;
@@ -106,16 +106,14 @@ bool Tracer::RayCompute(uint32_t x, uint32_t y)
         const vec3& b = vs[tri.idx[1]].pos;
         const vec3& c = vs[tri.idx[2]].pos;
         if(Moller_Trumbore(o, d, a, b, c, t, gu, gv)) {
-            if (cam.type == "perspective" || t > cam.znear && t < cam.zfar) {
-                // now just orthographic can do depth test 
-                if (t < min_t) {
-                    min_t = t;
-                    hTri = tri;
-                    hTri.bary = {1 - gu - gv, gu, gv};
-                }
+            if (t > cam.znear && t < cam.zfar && t < min_t) {
+                min_t = t;
+                hTri = tri;
+                hTri.bary = {1 - gu - gv, gu, gv};
             }
         }
     }
+
     // 3、set pixel color to value computed from hit point, light, and n
     if (min_t < numeric_limits<float>::max()) {
         RayShading(x, y, hTri, o + d * min_t);

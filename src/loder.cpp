@@ -197,13 +197,11 @@ void Loader::ParseTexTure(const Primitive& p, vector<Vertex>& vert)
                 const float* ptr = reinterpret_cast<const float*>(pData + i * stride);
                 uv.x = ptr[0];
                 uv.y = ptr[1];
-            }
-            else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+            } else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
                 const uint8_t* ptr = reinterpret_cast<const uint8_t*>(pData + i * stride);
                 uv.x = ptr[0] / 255.0f;
                 uv.y = ptr[1] / 255.0f;
-            }
-            else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+            } else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
                 const uint16_t* ptr = reinterpret_cast<const uint16_t*>(pData + i * stride);
                 uv.x = ptr[0] / 65535.0f;
                 uv.y = ptr[1] / 65535.0f;
