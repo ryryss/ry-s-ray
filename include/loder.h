@@ -18,7 +18,7 @@ public:
     inline std::vector <ry::Vertex>& GetVertices() {
         return vertices;
     }
-    inline tinygltf::Image GetTexTureImg() {
+    const tinygltf::Image& GetTexTureImg() {
         return model.images.size() <= 0 ? tinygltf::Image() : model.images[0]; // TODO
     }
 private:

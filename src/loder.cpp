@@ -103,6 +103,7 @@ void Loader::ParseLgt(int num)
     if (num < 0) {
         cout << "use default light" << endl;
         lgt.m = translate(mat4(1.0), vec3(-5.0f, 10.0f, -5.0f));
+        lgt.intensity = 200.;
     } else {
         const auto& n = model.nodes[num];
         const auto& node = nodes[num];
@@ -114,6 +115,17 @@ void Loader::ParseLgt(int num)
         lgt.color = { l.color[0], l.color[1], l.color[2] };
         if (lgt.type == "") {}
     }
+
+    float size = 0.2f; // free change to any
+    vec3 pos = lgt.m[3];
+    vec3 up = lgt.m[1];
+    vec3 right = lgt.m[0];
+
+    lgt.p0 = pos - 0.5f * size * right - 0.5f * size * up;
+    lgt.p1 = pos + 0.5f * size * right - 0.5f * size * up;
+    lgt.p2 = pos + 0.5f * size * right + 0.5f * size * up;
+    lgt.p3 = pos - 0.5f * size * right + 0.5f * size * up;
+    lgt.I = lgt.intensity;
 }
 
 void Loader::ParsePrimitive(const Primitive& p, const mat4& m)

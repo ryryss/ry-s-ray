@@ -10,6 +10,8 @@
 #include <memory>
 #include <array>
 #include <chrono>
+#include <random>
+#define M_PI 3.14159265358979323846
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -64,14 +66,6 @@ struct Camera : public Node {
 
     Camera() {};
     Camera(const Node& other) : Node(other) {};
-};
-
-struct Light : public Node {
-    double intensity = 0.0;
-    vec3 color;
-
-    Light() {};
-    Light(const Node& other) : Node(other) {};
 };
 
 struct Screen {

@@ -6,6 +6,7 @@ using namespace std;
 using namespace ry;
 using namespace glm;
 using namespace alg;
+uint8_t Tracer::maxDeep = 5;
 
 void Tracer::ProcessCamera()
 {
@@ -17,6 +18,8 @@ void Tracer::ProcessCamera()
     } else {
         cam.xmag = cam.ymag * scr.w / scr.h;
     }
+    tMin = cam.znear;
+    tMax = cam.zfar;
 }
 
 void Tracer::Excute(const Screen& s)
@@ -44,9 +47,9 @@ void Tracer::Calculate()
             // use the number of pixels on the y-axis to parallel cal
             for (uint16_t y = i * h; y < (i + 1) * h; y++) {
                 for (uint16_t x = 0; x < scr.w; x++) {
-                    if (RayCompute(x, y)) {
-                        // RayShading(x, y);
-                    }
+                    auto r = RayGeneration(x, y);
+                    auto rad = Li(r, 0);
+                    pixels[y * scr.w + x] = vec4(rad, 1);
                 }
             }
         });
@@ -56,9 +59,9 @@ void Tracer::Calculate()
     if (auto mod = scr.h % w_cnt; mod) {
         for (uint16_t y = scr.h / w_cnt * w_cnt; y < scr.h; y++) {
             for (uint16_t x = 0; x < scr.w; x++) {
-                if (RayCompute(x, y)) {
-                    // post processing ?
-                }
+                auto r = RayGeneration(x, y);
+                auto rad = Li(r, 0);
+                pixels[y * scr.w + x] = vec4(rad, 1);
             }
         }
     }
@@ -72,91 +75,124 @@ void Tracer::Calculate()
         }
     }*/
 }
-std::pair<ry::vec3, ry::vec3> Tracer::RayGeneration(uint32_t x, uint32_t y)
+
+Ray Tracer::RayGeneration(uint32_t x, uint32_t y)
 {
-    vec3 o, d;
+    Ray r;
     auto& cam = model->GetCam();
     float uu = -cam.xmag + 2 * cam.xmag * (x + 0.5) / scr.w;
     float vv = -cam.ymag + 2 * cam.ymag * (y + 0.5) / scr.h;
     if (cam.type == "perspective") {
-        o = cam.e;
-        d = normalize(cam.znear * cam.w + cam.u * uu + cam.v * vv);
+        r.o = cam.e;
+        r.d = normalize(cam.znear * cam.w + cam.u * uu + cam.v * vv);
     } else {
-        o = cam.e + cam.u * uu + cam.v * vv;
-        d = cam.w;
+        r.o = cam.e + cam.u * uu + cam.v * vv;
+        r.d = cam.w;
     }
-    return { o, d };
+    return r;
 }
 
-bool Tracer::RayCompute(uint32_t x, uint32_t y)
-{
-    // 1、compute viewing ray
-    auto [o, d] = RayGeneration(x, y);
+// 输入: 随机变量 u ∈ [0,1]^2
+vec3 CosineSampleHemisphere(const vec2& u) {
+    float r = sqrt(u.x);
+    float theta = 2.0f * M_PI * u.y;
 
-    // 2、find first object hit by ray and its surface normal n
-    auto& cam = model->GetCam();
-    Triangle hTri; // hit this tri
-    float t, gu, gv;
-    float min_t = numeric_limits<float>::max();
+    float x = r * cos(theta);
+    float y = r * sin(theta);
+    float z = sqrt(std::max(0.0f, 1 - x * x - y * y));
 
-    const auto& ts = model->GetTriangles();
-    const auto& vs = model->GetVertices();
-    for (auto& tri : ts) {
-        const vec3& a = vs[tri.idx[0]].pos;
-        const vec3& b = vs[tri.idx[1]].pos;
-        const vec3& c = vs[tri.idx[2]].pos;
-        if(Moller_Trumbore(o, d, a, b, c, t, gu, gv)) {
-            if (t > cam.znear && t < cam.zfar && t < min_t) {
-                min_t = t;
-                hTri = tri;
-                hTri.bary = {1 - gu - gv, gu, gv};
-            }
-        }
-    }
+    return vec3(x, y, z);  // 注意：局部坐标系下的向量
+}
 
-    // 3、set pixel color to value computed from hit point, light, and n
-    if (min_t < numeric_limits<float>::max()) {
-        RayShading(x, y, hTri, o + d * min_t);
-    }
-    return min_t < numeric_limits<float>::max();
+void CoordinateSystem(const vec3& n, vec3& t, vec3& b) {
+    if (fabs(n.x) > fabs(n.z))
+        t = normalize(vec3(-n.y, n.x, 0));
+    else
+        t = normalize(vec3(0, -n.z, n.y));
+    b = cross(n, t);
+}
+
+vec3 ToWorld(const vec3& local, const vec3& n) {
+    vec3 t, b;
+    CoordinateSystem(n, t, b);
+    return local.x * t + local.y * b + local.z * n;
 }
 
 // Ambient Shading
 vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f; // ka * Ia, A = env light
-void Tracer::RayShading(uint16_t x, uint16_t y, Triangle& t, const vec3& hitPoint)
+Spectrum Tracer::Li(const Ray& r, int depth)
 {
-    const auto& vs = model->GetVertices();
-    auto& lgt = model->GetLgt();
-    float distance = length(vec3(lgt.m[3]) - hitPoint);
-    auto l = normalize(vec3(lgt.m[3]) - hitPoint);
-
-    const auto& a = vs[t.idx[0]]; // 3 vert of tri
-    const auto& b = vs[t.idx[1]];
-    const auto& c = vs[t.idx[2]];
-    vec3 n = normalize(t.bary[0] * a.normal + t.bary[1] * b.normal + t.bary[2] * c.normal);
-    if (ShadowShading(hitPoint, n, l, distance)) {
-        pixels[y * scr.w + x] = A;
-        return;
+    Spectrum res(0.);
+    if (++depth > maxDeep) {
+        return res;
     }
-    t.color = t.bary[0] * a.color + t.bary[1] * b.color + t.bary[2] * c.color;
-    // t.color = SampleTexture(t.bary, a.uv, b.uv, c.uv);
-    auto& cam = model->GetCam();
-    auto v = normalize(vec3(cam.m[3]) - hitPoint);
-    pixels[y * scr.w + x] = A + vec4(BlinnPhongShading(t.color, vec3(0.2, 0.2, 0.2), 1.0, l, n, v), 1.0);
-    // pixels[y * scr.w + x] = vec4(LambertianShading(t.color, 1.0/*lgt.intensity * distance*/, l, n), 1.0);
+    Interaction* isect;
+    float hit = Intersect(r, tMax, isect);
+
+    // process no hit
+    if (!hit && depth == 1) {
+        return A;
+    } else if (!hit) {
+        return res;
+    } 
+    if (depth == 1) {
+        // process self-luminous objects
+    }
+    res.c += EstimateDirect(*isect);
+    // Sample BSDF to get new path direction
+    // vec3 c = bxdf->f(r.d, &wi, n, nullptr);
+    const vec3& wo = r.d;
+
+    vec3 localWi = CosineSampleHemisphere(u); // 局部坐标
+    if (localWi.z < 0) localWi.z *= -1; // 保证在上半球
+    wi = ToWorld(localWi, n);
+    // path trace
+    res += Li(Ray{ hitPoint, wi }, depth); // now ingonor energe lose
+    return res; 
 }
 
-bool Tracer::ShadowShading(const vec3& hitPoint, const vec3& n, const vec3& l, const float dis)
+Spectrum Tracer::EstimateDirect(const Interaction& isect)
 {
-    vec3 moveHit = hitPoint + n * 1e-4f;
-    float t, gu, gv;
+    Spectrum Ld(0.);
+    Sampler s;
+    vec2 u = s.Get2D();
+    auto& lgt = model->GetLgt();
+    vec3 areap = lgt.Sample_Li(isect, u, 1.0);
+    vec3 wi = areap - isect.p;
+    float dist2 = length(wi);
+    wi = normalize(wi);
+    Ld += lgt.I.c / dist2;
+
     const auto& ts = model->GetTriangles();
     const auto& vs = model->GetVertices();
-    for (auto& tri : ts) {
-        const vec3& a = vs[tri.idx[0]].pos;
-        const vec3& b = vs[tri.idx[1]].pos;
-        const vec3& c = vs[tri.idx[2]].pos;
-        if (Moller_Trumbore(moveHit, l, a, b, c, t, gu, gv) && t > 1e-8 && t < dis) {
+    const auto& ta = vs[isect.t.idx[0]];
+    const auto& tb = vs[isect.t.idx[1]];
+    const auto& tc = vs[isect.t.idx[2]];
+    vec3 n = normalize(isect.t.bary[0] * ta.normal + isect.t.bary[1] * tb.normal + isect.t.bary[2] * tc.normal);
+    Interaction isect2;
+    if (Intersect(Ray{ isect.p + n * 1e-4f, wi }, dist2, &isect2)) {
+        return Spectrum (0.); // shadow
+    }
+    Ld.c += LambertianShading(SampleTexture(isect.t.bary, ta.uv, tb.uv, tc.uv), 1.0/*lgt.intensity * distance*/, wi, n);
+    return Ld;
+}
+
+bool Tracer::Intersect(const Ray& r, const float dis, Interaction* isect)
+{
+    float t, gu, gv;
+    float mt = tMax;
+    const auto& ts = model->GetTriangles();
+    const auto& vs = model->GetVertices();
+    for (auto& it : ts) {
+        const vec3& a = vs[it.idx[0]].pos;
+        const vec3& b = vs[it.idx[1]].pos;
+        const vec3& c = vs[it.idx[2]].pos;
+        if (Moller_Trumbore(r.o, r.d, a, b, c, t, gu, gv) && 
+            t > tMin && t < dis && t < mt && t < tMax ) {
+            mt = t;
+            *isect = Interaction(it, mt);
+            isect->t.bary = { 1 - gu - gv, gu, gv };
+            isect->p = r.o + t * r.d;
             return true;
         }
     }
