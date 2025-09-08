@@ -49,7 +49,7 @@ void Tracer::Calculate()
                 for (uint16_t x = 0; x < scr.w; x++) {
                     auto r = RayGeneration(x, y);
                     auto rad = Li(r, 0);
-                    pixels[y * scr.w + x] = vec4(rad, 1);
+                    pixels[y * scr.w + x] = vec4(rad.c, 1);
                 }
             }
         });
@@ -61,7 +61,7 @@ void Tracer::Calculate()
             for (uint16_t x = 0; x < scr.w; x++) {
                 auto r = RayGeneration(x, y);
                 auto rad = Li(r, 0);
-                pixels[y * scr.w + x] = vec4(rad, 1);
+                pixels[y * scr.w + x] = vec4(rad.c, 1.);
             }
         }
     }
@@ -92,7 +92,7 @@ Ray Tracer::RayGeneration(uint32_t x, uint32_t y)
     return r;
 }
 
-// 输入: 随机变量 u ∈ [0,1]^2
+// need input 2 random float ∈ [0,1]^2
 vec3 CosineSampleHemisphere(const vec2& u) {
     float r = sqrt(u.x);
     float theta = 2.0f * M_PI * u.y;
@@ -101,7 +101,7 @@ vec3 CosineSampleHemisphere(const vec2& u) {
     float y = r * sin(theta);
     float z = sqrt(std::max(0.0f, 1 - x * x - y * y));
 
-    return vec3(x, y, z);  // 注意：局部坐标系下的向量
+    return vec3(x, y, z); // local value
 }
 
 void CoordinateSystem(const vec3& n, vec3& t, vec3& b) {
@@ -142,16 +142,16 @@ Spectrum Tracer::Li(const Ray& r, int depth)
     // Sample BSDF to get new path direction
     // vec3 c = bxdf->f(r.d, &wi, n, nullptr);
     const vec3& wo = r.d;
-
-    vec3 localWi = CosineSampleHemisphere(u); // 局部坐标
-    if (localWi.z < 0) localWi.z *= -1; // 保证在上半球
-    wi = ToWorld(localWi, n);
+    Sampler s;
+    vec3 wi = CosineSampleHemisphere(s.Get2D()); // 局部坐标
+    if (wi.z < 0) wi.z *= -1; // 保证在上半球
+    wi = ToWorld(wi, isect->t.n);
     // path trace
-    res += Li(Ray{ hitPoint, wi }, depth); // now ingonor energe lose
+    res.c += Li(Ray{ isect->p, wi }, depth); // now ingonor energe lose
     return res; 
 }
 
-Spectrum Tracer::EstimateDirect(const Interaction& isect)
+Spectrum Tracer::EstimateDirect(Interaction& isect)
 {
     Spectrum Ld(0.);
     Sampler s;
@@ -161,7 +161,7 @@ Spectrum Tracer::EstimateDirect(const Interaction& isect)
     vec3 wi = areap - isect.p;
     float dist2 = length(wi);
     wi = normalize(wi);
-    Ld += lgt.I.c / dist2;
+    Ld.c += lgt.I.c / dist2;
 
     const auto& ts = model->GetTriangles();
     const auto& vs = model->GetVertices();
@@ -169,8 +169,9 @@ Spectrum Tracer::EstimateDirect(const Interaction& isect)
     const auto& tb = vs[isect.t.idx[1]];
     const auto& tc = vs[isect.t.idx[2]];
     vec3 n = normalize(isect.t.bary[0] * ta.normal + isect.t.bary[1] * tb.normal + isect.t.bary[2] * tc.normal);
+    isect.t.n = n;
     Interaction isect2;
-    if (Intersect(Ray{ isect.p + n * 1e-4f, wi }, dist2, &isect2)) {
+    if (!Intersect(Ray{ isect.p + n * 1e-4f, wi }, dist2, &isect2)) {
         return Spectrum (0.); // shadow
     }
     Ld.c += LambertianShading(SampleTexture(isect.t.bary, ta.uv, tb.uv, tc.uv), 1.0/*lgt.intensity * distance*/, wi, n);

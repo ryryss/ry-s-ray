@@ -2,6 +2,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "loder.h"
+#include "light.h"
 
 using namespace std;
 using namespace tinygltf;
@@ -86,7 +87,7 @@ void Loader::ParseCam(int num)
     cam.v = normalize(cam.m[1]);
     cam.u = normalize(cam.m[0]);
     /*
-       some book like¡¶Ray Tracing in One Weekend¡·will use : 
+       some book like¡¶Ray Tracing in One Weekend¡·use : 
        cam.w = normalize(cam.e - vec3(0, 0, -1));
        cam.u = normalize(cross(cam.w, vec3(0, 1, 0)));
        cam.v = cross(cam.u, cam.w);
@@ -112,7 +113,7 @@ void Loader::ParseLgt(int num)
         lgt = ry::Light(node);
         lgt.type = l.type;
         lgt.intensity = l.intensity;
-        lgt.color = { l.color[0], l.color[1], l.color[2] };
+        // lgt.color = { l.color[0], l.color[1], l.color[2] };
         if (lgt.type == "") {}
     }
 
@@ -147,10 +148,10 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
     int tSize = triangles.size();
     triangles.resize(tSize + idx.size() / 3);
     for (int i = 0; i < idx.size(); i+=3) {
-        int tIdx = i / 3;
-        triangles[tIdx + tSize].idx[0] = idx[i] + vSize;
-        triangles[tIdx + tSize].idx[1] = idx[i + 1] + vSize;
-        triangles[tIdx + tSize].idx[2] = idx[i + 2] + vSize;
+        auto& tri = triangles[i / 3 + tSize];
+        tri.idx[0] = idx[i] + vSize;
+        tri.idx[1] = idx[i + 1] + vSize;
+        tri.idx[2] = idx[i + 2] + vSize;
     }
     vertices.insert(vertices.end(), vert.begin(), vert.end());
     cout << "parse result : vertices size = "  << vert.size()

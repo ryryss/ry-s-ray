@@ -2,6 +2,7 @@
 #define LODER
 #include <tinygltf/tiny_gltf.h>
 #include "pub.h"
+#include "light.h"
 
 class Loader {
 public:

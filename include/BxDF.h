@@ -1,6 +1,8 @@
 #ifndef BXDF
 #define BXDF
 #include "pub.h"
+#include "light.h"
+
 using namespace ry;
 // reference from https://github.com/mmp/pbrt-v3
 // BSDF Declarations
@@ -47,14 +49,45 @@ public:
     Spectrum rho(const ry::vec3& wo, int nSamples, const ry::vec2* samples,
         BxDFType flags = BSDF_ALL) const;
     Spectrum Sample_f(const ry::vec3& wo, ry::vec3* wi, const ry::vec2& u,
-        float* pdf, BxDFType type = BSDF_ALL,
+        float* pdf, const ry::vec3& n, BxDFType type = BSDF_ALL,
         BxDFType* sampledType = nullptr) const;
     float Pdf(const ry::vec3& wo, const ry::vec3& wi,
         BxDFType flags = BSDF_ALL) const;
     std::string ToString() const;
 
+    Spectrum Sample_f(const ry::vec3& wo,
+        const ry::vec3& n,
+        ry::vec3& wi_world,
+        float& pdf,
+        Sampler& sampler) const;
+
+    ry::vec3 CosineSampleHemisphere(const ry::vec2& u) const {
+        float r = sqrt(u.x);
+        float theta = 2.0f * M_PI * u.y;
+        float x = r * cos(theta);
+        float y = r * sin(theta);
+        float z = sqrt(std::max(0.0f, 1.0f - x * x - y * y));
+        return ry::vec3(x, y, z);
+    }
+
+    // t,b,n
+    void CoordinateSystem(const ry::vec3& n, ry::vec3& t, ry::vec3& b) const {
+        if (fabs(n.x) > fabs(n.z)) {
+            t = normalize(ry::vec3(-n.y, n.x, 0.0f));
+        } else{
+            t = normalize(ry::vec3(0.0f, -n.z, n.y));
+        }
+        b = cross(n, t);
+    }
+
+    ry::vec3 LocalToWorld(const ry::vec3& local, const ry::vec3& n) const {
+        ry::vec3 t, b;
+        CoordinateSystem(n, t, b);
+        return local.x * t + local.y * b + local.z * n;
+    }
     const BxDFType type;
 private:
+    ry::vec3 kd;
     // BSDF Private Methods
     ~BSDF() {}
 };

@@ -54,7 +54,7 @@ private:
 
 	// or named radiance(), L = Radiance, i = incoming
 	Spectrum Li(const Ray& r, int depth);
-	Spectrum EstimateDirect(const Interaction& isect);
+	Spectrum EstimateDirect(Interaction& isect);
 	ry::Screen scr;
 	std::vector<ry::vec4> pixels;
 

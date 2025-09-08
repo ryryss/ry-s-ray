@@ -37,6 +37,7 @@ struct Triangle {
     vec4 color;
     uint32_t idx[3]; // use for  model vertices
     vec3 bary; // barycentric
+    vec3 n;
 };
 
 struct Node {
