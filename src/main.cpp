@@ -9,6 +9,7 @@ using namespace ry;
 using namespace std::chrono;
 
 int main(int argc, char* argv[]) {
+    srand((unsigned)time(NULL));
     string input;
     if (argc < 2) {
         cout << "please input a simple gltf/glb file: " << endl;

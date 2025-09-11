@@ -2,7 +2,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "loder.h"
-#include "light.h"
 
 using namespace std;
 using namespace tinygltf;
@@ -41,7 +40,7 @@ bool Loader::LoadFromFile(const string& file)
     if (!model.cameras.size()) {
         ParseCam(-1);
     }
-    if (!model.lights.size()) {
+    if (!lgts.size()) {
         ParseLgt(-1);
     }
     return true;
@@ -87,7 +86,7 @@ void Loader::ParseCam(int num)
     cam.v = normalize(cam.m[1]);
     cam.u = normalize(cam.m[0]);
     /*
-       some book like¡¶Ray Tracing in One Weekend¡·use : 
+       some book like¡¶Ray Tracing in One Weekend¡·will use : 
        cam.w = normalize(cam.e - vec3(0, 0, -1));
        cam.u = normalize(cross(cam.w, vec3(0, 1, 0)));
        cam.v = cross(cam.u, cam.w);
@@ -103,30 +102,19 @@ void Loader::ParseLgt(int num)
 
     if (num < 0) {
         cout << "use default light" << endl;
-        lgt.m = translate(mat4(1.0), vec3(-5.0f, 10.0f, -5.0f));
-        lgt.intensity = 200.;
+        lgts.push_back(ry::Light());
+        lgts.back().m = translate(mat4(1.0), vec3(-5.0f, 10.0f, -5.0f));
     } else {
         const auto& n = model.nodes[num];
         const auto& node = nodes[num];
 
         const auto& l = model.lights[n.light];
-        lgt = ry::Light(node);
-        lgt.type = l.type;
-        lgt.intensity = l.intensity;
+        lgts.push_back(ry::Light(node));
+        lgts.back().type = l.type;
+        // lgt.intensity = l.intensity;
         // lgt.color = { l.color[0], l.color[1], l.color[2] };
-        if (lgt.type == "") {}
+        if (lgts.back().type == "") {}
     }
-
-    float size = 0.2f; // free change to any
-    vec3 pos = lgt.m[3];
-    vec3 up = lgt.m[1];
-    vec3 right = lgt.m[0];
-
-    lgt.p0 = pos - 0.5f * size * right - 0.5f * size * up;
-    lgt.p1 = pos + 0.5f * size * right - 0.5f * size * up;
-    lgt.p2 = pos + 0.5f * size * right + 0.5f * size * up;
-    lgt.p3 = pos - 0.5f * size * right + 0.5f * size * up;
-    lgt.I = lgt.intensity;
 }
 
 void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
@@ -137,21 +125,51 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
     ParseTexTure(p, vert);
     ParseNormal(p, vert);
     ParseVertColor(p, vert);
+
+    int vSize = vertices.size();
+    int tSize = triangles.size();
+    triangles.resize(tSize + idx.size() / 3);
+
     // apply trans
     mat3 n_m = transpose(inverse(mat3(m)));
     for (auto i = 0; i < vert.size(); i++) {
         vert[i].pos = m * vec4(vert[i].pos, 1.0f);
         vert[i].normal = normalize(n_m * vert[i].normal);
+        vert[i].i = i + vSize;
     }
-    // collect tri
-    int vSize = vertices.size();
-    int tSize = triangles.size();
-    triangles.resize(tSize + idx.size() / 3);
+
+    if (isEmissive(p.material)) {
+        // TODO emissive texture
+        auto& m = model.materials[p.material];
+        float emissiveStrength = 0.0;
+        if (auto it = m.extensions.find("KHR_materials_emissive_strength");
+            it != m.extensions.end()) {
+            const tinygltf::Value& val = it->second.Get("emissiveStrength");
+            emissiveStrength = static_cast<float>(val.Get<double>());
+        }
+        lgts.push_back(ry::Light());
+        lgts.back().emissiveStrength = emissiveStrength;
+        lgts.back().I.c[0] = m.emissiveFactor[0];
+        lgts.back().I.c[1] = m.emissiveFactor[1];
+        lgts.back().I.c[2] = m.emissiveFactor[2];
+        lgts.back().name = "AreaLight";
+    }
+
+    // collect tris
     for (int i = 0; i < idx.size(); i+=3) {
         auto& tri = triangles[i / 3 + tSize];
         tri.idx[0] = idx[i] + vSize;
         tri.idx[1] = idx[i + 1] + vSize;
         tri.idx[2] = idx[i + 2] + vSize;
+        tri.material = p.material;
+        tri.i = i / 3 + tSize;
+
+        if (isEmissive(p.material)) {
+            lgts.back().tris.push_back(tri);
+            vec3 e1 = vert[idx[i + 1]].pos - vert[idx[i]].pos;
+            vec3 e2 = vert[idx[i + 2]].pos - vert[idx[i]].pos;
+            lgts.back().area += 0.5f * length(cross(e1, e2));    
+        }
     }
     vertices.insert(vertices.end(), vert.begin(), vert.end());
     cout << "parse result : vertices size = "  << vert.size()
@@ -435,4 +453,22 @@ void Loader::ParseChildNode(int num)
         t = T * R * S;
     }
     return t;
+}
+
+vec3 Loader::GetTriNormalizeByBary(int i, const vec3& bary)
+{
+    auto tri = triangles[i];
+    const auto& a = vertices[tri.idx[0]];
+    const auto& b = vertices[tri.idx[1]];
+    const auto& c = vertices[tri.idx[2]];
+    return normalize(bary[0] * a.normal + bary[1] * b.normal + bary[2] * c.normal);
+}
+
+vec3 Loader::GetTriNormalize(int i)
+{
+    auto tri = triangles[i];
+    const auto& a = vertices[tri.idx[0]].pos;
+    const auto& b = vertices[tri.idx[1]].pos;
+    const auto& c = vertices[tri.idx[2]].pos;
+    return normalize(cross(b - a, c -a));
 }

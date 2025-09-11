@@ -11,7 +11,7 @@
 #include <array>
 #include <chrono>
 #include <random>
-#define M_PI 3.14159265358979323846
+#define M_PI 3.14159265358979323846f
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -19,6 +19,9 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <glm/gtc/random.hpp>
+
+#include <tinygltf/tiny_gltf.h>
 
 namespace ry {
 using vec3 = glm::vec3; // can ez change mat lib
@@ -31,13 +34,15 @@ struct Vertex {
     vec4 color = vec4(1.0);
     vec3 normal;
     vec2 uv;
+    int i;
 };
 
 struct Triangle {
     vec4 color;
     uint32_t idx[3]; // use for  model vertices
     vec3 bary; // barycentric
-    vec3 n;
+    int material;
+    int i;
 };
 
 struct Node {
@@ -68,6 +73,38 @@ struct Camera : public Node {
     Camera() {};
     Camera(const Node& other) : Node(other) {};
 };
+
+class RGBSpectrum {
+public:
+    RGBSpectrum(float v = 0.f) : c{ v } {}
+    RGBSpectrum(vec3 v) : c(v) {}
+
+    RGBSpectrum& operator+=(const RGBSpectrum& c2) {
+        c += c2.c;
+        return *this;
+    }
+    RGBSpectrum& operator+(const RGBSpectrum& c2) {
+        return RGBSpectrum(c + c2.c);
+    }
+    RGBSpectrum& operator/(float c2) {
+        return RGBSpectrum(c / c2);
+    }
+    vec3 c;
+};
+using Spectrum = RGBSpectrum;
+
+class Light : public Node {
+public:
+    Light() {};
+    Light(const Node& other) : Node(other) {};
+
+    float area = 0.0f;
+    float emissiveStrength;
+    Spectrum I; // or emissiveFactor
+    std::vector<Triangle> tris;
+};
+
+using Material = tinygltf::Material;
 
 struct Screen {
     uint16_t w = 0;
