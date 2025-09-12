@@ -6,7 +6,6 @@ using namespace std;
 using namespace ry;
 using namespace glm;
 using namespace alg;
-uint8_t Tracer::maxDeep = 4;
 
 // Ambient Shading
 vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f;
@@ -38,10 +37,10 @@ void Tracer::Excute(const Screen& s)
         pixels.resize(s.h * s.w);
         ProcessCamera();
     }
-    Calculate();
+    Parallel();
 }
 
-void Tracer::Calculate()
+void Tracer::Parallel()
 {
     auto& t = Task::GetInstance();
     auto w_cnt = t.WokerCnt() - 1;
@@ -50,7 +49,6 @@ void Tracer::Calculate()
             // use the number of pixels on the y-axis to parallel cal
             for (uint16_t y = i * h; y < (i + 1) * h; y++) {
                 for (uint16_t x = 0; x < scr.w; x++) {
-                    Ray r = RayGeneration(x, y);
                     pixels[y * scr.w + x] = vec4(RayCompute(x, y).c, 1.0);
                 }
             }
@@ -75,6 +73,7 @@ void Tracer::Calculate()
         }
     }*/
 }
+
 Ray Tracer::RayGeneration(uint32_t x, uint32_t y)
 {
     vec3 o, d;
@@ -93,16 +92,14 @@ Ray Tracer::RayGeneration(uint32_t x, uint32_t y)
 
 ry::Spectrum Tracer::RayCompute(uint32_t x, uint32_t y)
 {
-    Ray r = RayGeneration(x, y);
+    Ray r = RayGeneration(x, y); 
     Spectrum Lo(0.);
-
-    Interaction isect;
-    if (!Intersect(r, tMax, &isect)) {
-        return A;
+    //how many ray
+    int rCnt = 256;
+    for (int i = 0; i < rCnt; i++) {
+        Lo += Li(r);
     }
-
-    Lo += Li(r, isect, 0);
-    return Lo;
+    return Lo / rCnt;
 }
 
 // need input 2 random float ∈ [0,1]^2
@@ -113,7 +110,7 @@ vec3 CosineSampleHemisphere(const vec2& u) {
     float x = r * cos(theta);
     float y = r * sin(theta);
     float z = sqrt(glm::max(0.0f, 1.0f - u.x));
-
+    if (z < 0) z *= -1;
     return vec3(x, y, z); // local value
 }
 
@@ -180,56 +177,49 @@ Spectrum Tracer::EstimateDirect(const Interaction& isect)
     float cosl = glm::max(0.f, dot(nl, -wi));
     float cosp = glm::max(0.f, dot(nt, wi));
     float pdf = 1.0f / lgt.area;
-    vec3 Le = lgt.I.c * lgt.emissiveStrength * 0.5f;// / (M_PI * lgt.area);
+    vec3 Le = lgt.I.c * lgt.emissiveStrength * 0.3f;// / (M_PI * lgt.area);
     vec3 f = kd / M_PI;// material.BRDF(wo, wi);
     Lo += f * Le * cosp * cosl / (dist2 * pdf);
     return Lo;
 }
 
-Spectrum Tracer::Li(const Ray& r, const Interaction& isect, int depth)
+Spectrum Tracer::Li(const Ray& r)
 {
     Spectrum Lo(0.);
-    if (depth >= maxDeep) {
-        return Lo;
-    }
-    if (depth == 0) {
-        // process self-luminous objects
-    }
-    Lo += EstimateDirect(isect);
-    
-    vec3 nt = model->GetTriNormalizeByBary(isect.tri.i, isect.tri.bary);
-    const Material& mat = model->GetMaterial(isect.tri.material);
-    Spectrum kd;
-    if (model->isEmissive(isect.tri.material)) {
-        auto& lgt = model->GetLgt();
-        return Spectrum(lgt.I.c * lgt.emissiveStrength * 0.5f);
-    } else {
-        kd = Spectrum(vec3(mat.pbrMetallicRoughness.baseColorFactor[0],
-            mat.pbrMetallicRoughness.baseColorFactor[1], mat.pbrMetallicRoughness.baseColorFactor[2]));
-    }
-
-    int bounces = 6;
-    Spectrum Ld;
-    for (int i = 0; i < bounces; ++i) {
-        Sampler s;
-        vec3 wi = ToWorld(CosineSampleHemisphere(s.Get2D())/*vec3(1.0f, 0.0f, 0.0f)*/, nt);
-        Interaction isect2;
-        if (!Intersect(Ray{ isect.p + nt * 1e-5f, wi }, tMax, &isect2)) {
-            Ld.c += A;
-            continue;
-        } else if (model->isEmissive(isect2.tri.material)) {
-            auto & lgt = model->GetLgt();
-            Ld.c += lgt.I.c * lgt.emissiveStrength * 0.5f;
-            continue;
+    Spectrum beta(1.f);
+    Interaction isect;
+    Ray ray = r;
+    for (int bounce = 0; bounce < 3/*bounces*/; bounce++) {
+        Spectrum L(0.);
+        // Lo += beta * Le;
+        if (!Intersect(ray, tMax, &isect)) {
+            Lo += beta * vec3(A);
+            break;
+        } else if (model->isEmissive(isect.tri.material)) {
+            auto& lgt = model->GetLgt();
+            Lo += beta * lgt.I.c * lgt.emissiveStrength * 0.3f;
+            break;
         }
-        vec3 n2 = model->GetTriNormalizeByBary(isect2.tri.i, isect2.tri.bary);
-        Spectrum Le = Li(Ray{ isect2.p, -wi}, isect2, depth + 1);
-        Spectrum f = kd.c / float(M_PI);
-        float cosTheta = glm::max(dot(nt, wi), 0.f);
-        float pdf = cosTheta / 2 / M_PI;
-        Ld += f.c * Le.c * cosTheta / pdf;
+        if (bounce == 0) {
+            // process specular 
+        }
+        Lo += EstimateDirect(isect);
+        const Material& mat = model->GetMaterial(isect.tri.material);
+        Spectrum kd = (vec3(mat.pbrMetallicRoughness.baseColorFactor[0],
+            mat.pbrMetallicRoughness.baseColorFactor[1], mat.pbrMetallicRoughness.baseColorFactor[2]));
+        vec3 n = model->GetTriNormalizeByBary(isect.tri.i, isect.tri.bary);
+
+        Sampler s;
+        vec3 wi = ToWorld(CosineSampleHemisphere(s.Get2D()), n);
+        // Li_indirect
+        // Ld += f.c * Le.c * cosTheta / pdf;
+        Spectrum f = kd / M_PI;
+        float cos = glm::max(dot(n, wi), 0.f);
+        float pdf = cos / 2 / M_PI;
+        beta *= f * cos / pdf;
+        ray.d = wi;
+        ray.o = isect.p + 1e-4f * n;
     }
-    Lo += (Ld / (float)bounces);
     return Lo;
 }
 

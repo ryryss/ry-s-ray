@@ -83,6 +83,20 @@ public:
         c += c2.c;
         return *this;
     }
+    RGBSpectrum& operator+=(const vec3& c2) {
+        c += c2;
+        return *this;
+    }
+    RGBSpectrum operator*(const float c2) {
+        return RGBSpectrum(c * c2);
+    }
+    RGBSpectrum operator*(const RGBSpectrum& c2) {
+        return RGBSpectrum(c * c2.c);
+    }
+    RGBSpectrum& operator*=(const RGBSpectrum& c2) {
+        c *= c2.c;
+        return *this;
+    }
     RGBSpectrum& operator+(const RGBSpectrum& c2) {
         return RGBSpectrum(c + c2.c);
     }

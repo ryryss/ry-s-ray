@@ -39,11 +39,11 @@ public:
 	}
 	void ProcessCamera();
 private:
-	void Calculate();
+	void Parallel();
 	Ray RayGeneration(uint32_t x, uint32_t y);
 	ry::Spectrum Tracer::RayCompute(uint32_t x, uint32_t y);
 	// or named radiance(), L = Radiance, i = incoming
-	ry::Spectrum Tracer::Li(const Ray& r, const Interaction& isect, int depth);
+	ry::Spectrum Tracer::Li(const Ray& r);
 	ry::vec4 Tracer::SampleTexture(const ry::vec3& bary, const ry::vec2& uv0, 
 		const ry::vec2& uv1, const ry::vec2& uv2);
 	bool Intersect(const Ray& r, const float dis, Interaction* isect);
@@ -61,7 +61,5 @@ private:
 	   To fully decouple, we could add an intermediate class to call loader and tracer.
 	*/
 	Loader* model;
-
-	static uint8_t maxDeep;
 };
 #endif
