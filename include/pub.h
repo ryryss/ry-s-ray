@@ -11,7 +11,14 @@
 #include <array>
 #include <chrono>
 #include <random>
-#define M_PI 3.14159265358979323846f
+static float ShadowEpsilon = 0.0001f;
+static float Pi = 3.14159265358979323846;
+static float InvPi = 0.31830988618379067154;
+static float Inv2Pi = 0.15915494309189533577;
+static float Inv4Pi = 0.07957747154594766788;
+static float PiOver2 = 1.57079632679489661923;
+static float PiOver4 = 0.78539816339744830961;
+static float Sqrt2 = 1.41421356237309504880;
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -72,50 +79,6 @@ struct Camera : public Node {
 
     Camera() {};
     Camera(const Node& other) : Node(other) {};
-};
-
-class RGBSpectrum {
-public:
-    RGBSpectrum(float v = 0.f) : c{ v } {}
-    RGBSpectrum(vec3 v) : c(v) {}
-
-    RGBSpectrum& operator+=(const RGBSpectrum& c2) {
-        c += c2.c;
-        return *this;
-    }
-    RGBSpectrum& operator+=(const vec3& c2) {
-        c += c2;
-        return *this;
-    }
-    RGBSpectrum operator*(const float c2) {
-        return RGBSpectrum(c * c2);
-    }
-    RGBSpectrum operator*(const RGBSpectrum& c2) {
-        return RGBSpectrum(c * c2.c);
-    }
-    RGBSpectrum& operator*=(const RGBSpectrum& c2) {
-        c *= c2.c;
-        return *this;
-    }
-    RGBSpectrum& operator+(const RGBSpectrum& c2) {
-        return RGBSpectrum(c + c2.c);
-    }
-    RGBSpectrum& operator/(float c2) {
-        return RGBSpectrum(c / c2);
-    }
-    vec3 c;
-};
-using Spectrum = RGBSpectrum;
-
-class Light : public Node {
-public:
-    Light() {};
-    Light(const Node& other) : Node(other) {};
-
-    float area = 0.0f;
-    float emissiveStrength;
-    Spectrum I; // or emissiveFactor
-    std::vector<Triangle> tris;
 };
 
 using Material = tinygltf::Material;

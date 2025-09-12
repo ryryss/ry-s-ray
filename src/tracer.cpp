@@ -1,7 +1,7 @@
 ﻿#include "tracer.h"
 #include "algorithm.h"
 #include "task.h"
-
+#include "light.h"
 using namespace std;
 using namespace ry;
 using namespace glm;
@@ -22,6 +22,12 @@ void Tracer::ProcessCamera()
     }
     tMin = cam.znear;
     tMax = cam.zfar;
+}
+
+Tracer::Tracer()
+{
+    maxTraces = 64;
+    cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 
 void Tracer::Excute(const Screen& s)
@@ -90,42 +96,14 @@ Ray Tracer::RayGeneration(uint32_t x, uint32_t y)
     return { o, d };
 }
 
-ry::Spectrum Tracer::RayCompute(uint32_t x, uint32_t y)
+Spectrum Tracer::RayCompute(uint32_t x, uint32_t y)
 {
     Ray r = RayGeneration(x, y); 
     Spectrum Lo(0.);
-    //how many ray
-    int rCnt = 256;
-    for (int i = 0; i < rCnt; i++) {
+    for (int i = 0; i < maxTraces; i++) {
         Lo += Li(r);
     }
-    return Lo / rCnt;
-}
-
-// need input 2 random float ∈ [0,1]^2
-vec3 CosineSampleHemisphere(const vec2& u) {
-    float r = sqrt(u.x);
-    float theta = 2.0f * M_PI * u.y;
-
-    float x = r * cos(theta);
-    float y = r * sin(theta);
-    float z = sqrt(glm::max(0.0f, 1.0f - u.x));
-    if (z < 0) z *= -1;
-    return vec3(x, y, z); // local value
-}
-
-void CoordinateSystem(const vec3& n, vec3& t, vec3& b) {
-    if (fabs(n.x) > fabs(n.z))
-        t = normalize(vec3(-n.y, n.x, 0));
-    else
-        t = normalize(vec3(0, -n.z, n.y));
-    b = cross(n, t);
-}
-
-vec3 ToWorld(const vec3& local, const vec3& n) {
-    vec3 t, b;
-    CoordinateSystem(n, t, b);
-    return local.x * t + local.y * b + local.z * n;
+    return Lo / maxTraces;
 }
 
 vec3 SampleTriangle(const vec3& a, const vec3& b, const vec3& c){
@@ -162,7 +140,7 @@ Spectrum Tracer::EstimateDirect(const Interaction& isect)
     isect.tri;
     vec3 nt = model->GetTriNormalizeByBary(isect.tri.i, isect.tri.bary);
     Interaction isect2;
-    if (Intersect(Ray{ isect.p + nt * 1e-5f, wi }, length(sp - isect.p), &isect2)) {
+    if (Intersect(Ray{ isect.p + nt * ShadowEpsilon, wi }, length(sp - isect.p), &isect2)) {
         const Material& mat = model->GetMaterial(isect2.tri.material);
         if (!model->isEmissive(isect2.tri.material)) {
             return Spectrum(0.); // if hit any obeject without emissive = shadow
@@ -177,8 +155,8 @@ Spectrum Tracer::EstimateDirect(const Interaction& isect)
     float cosl = glm::max(0.f, dot(nl, -wi));
     float cosp = glm::max(0.f, dot(nt, wi));
     float pdf = 1.0f / lgt.area;
-    vec3 Le = lgt.I.c * lgt.emissiveStrength * 0.3f;// / (M_PI * lgt.area);
-    vec3 f = kd / M_PI;// material.BRDF(wo, wi);
+    vec3 Le = lgt.I.c * lgt.emissiveStrength;// / (Pi * lgt.area);
+    vec3 f = kd / Pi;
     Lo += f * Le * cosp * cosl / (dist2 * pdf);
     return Lo;
 }
@@ -197,7 +175,7 @@ Spectrum Tracer::Li(const Ray& r)
             break;
         } else if (model->isEmissive(isect.tri.material)) {
             auto& lgt = model->GetLgt();
-            Lo += beta * lgt.I.c * lgt.emissiveStrength * 0.3f;
+            Lo += beta * lgt.I.c * lgt.emissiveStrength;
             break;
         }
         if (bounce == 0) {
@@ -208,17 +186,28 @@ Spectrum Tracer::Li(const Ray& r)
         Spectrum kd = (vec3(mat.pbrMetallicRoughness.baseColorFactor[0],
             mat.pbrMetallicRoughness.baseColorFactor[1], mat.pbrMetallicRoughness.baseColorFactor[2]));
         vec3 n = model->GetTriNormalizeByBary(isect.tri.i, isect.tri.bary);
-
+        isect.b = make_unique<BSDF>(n);
+        isect.b->Add(make_unique<LambertianReflection>(kd));
+        // indirect
         Sampler s;
-        vec3 wi = ToWorld(CosineSampleHemisphere(s.Get2D()), n);
-        // Li_indirect
-        // Ld += f.c * Le.c * cosTheta / pdf;
-        Spectrum f = kd / M_PI;
-        float cos = glm::max(dot(n, wi), 0.f);
-        float pdf = cos / 2 / M_PI;
-        beta *= f * cos / pdf;
+        float pdf;
+        vec3 wi;
+        Spectrum f = isect.b->Sample_f(ray.d, &wi, s.Get2D(), &pdf, BSDF_ALL);
+        if (pdf <= 0) {
+            break;
+        }
+        // float cos = glm::max(dot(n, wi), 0.f);
+        // beta *= f * cos / pdf;
+        beta *= f * abs(dot(wi, n)) / pdf;
         ray.d = wi;
-        ray.o = isect.p + 1e-4f * n;
+        ray.o = isect.p + ShadowEpsilon * n;
+        /*
+            recursive version like:
+            Lo += f * Le * cos / pdf;
+            Le = Li(new ray);
+            Lo += f * Li(new ray) * cos / pdf;
+            so there use beta *= f * cos / pdf;
+        */
     }
     return Lo;
 }

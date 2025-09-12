@@ -1,7 +1,7 @@
 #ifndef LODER
 #define LODER
 #include "pub.h"
-
+#include "light.h"
 class Loader {
 public:
     bool LoadFromFile(const std::string& filepath);
