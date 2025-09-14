@@ -26,7 +26,7 @@ void Tracer::ProcessCamera()
 
 Tracer::Tracer()
 {
-    maxTraces = 64;
+    maxTraces = 4;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 
@@ -155,7 +155,7 @@ Spectrum Tracer::EstimateDirect(const Interaction& isect)
     float cosl = glm::max(0.f, dot(nl, -wi));
     float cosp = glm::max(0.f, dot(nt, wi));
     float pdf = 1.0f / lgt.area;
-    vec3 Le = lgt.I.c * lgt.emissiveStrength;// / (Pi * lgt.area);
+    vec3 Le = lgt.I.c * lgt.emissiveStrength * 0.3f;// / (Pi * lgt.area);
     vec3 f = kd / Pi;
     Lo += f * Le * cosp * cosl / (dist2 * pdf);
     return Lo;
@@ -175,7 +175,7 @@ Spectrum Tracer::Li(const Ray& r)
             break;
         } else if (model->isEmissive(isect.tri.material)) {
             auto& lgt = model->GetLgt();
-            Lo += beta * lgt.I.c * lgt.emissiveStrength;
+            Lo += beta * lgt.I.c * lgt.emissiveStrength * 0.3f;
             break;
         }
         if (bounce == 0) {
@@ -192,12 +192,11 @@ Spectrum Tracer::Li(const Ray& r)
         Sampler s;
         float pdf;
         vec3 wi;
-        Spectrum f = isect.b->Sample_f(ray.d, &wi, s.Get2D(), &pdf, BSDF_ALL);
+        Spectrum f = isect.b->Sample_f(-ray.d, &wi, s.Get2D(), &pdf, BSDF_ALL);
         if (pdf <= 0) {
             break;
         }
         // float cos = glm::max(dot(n, wi), 0.f);
-        // beta *= f * cos / pdf;
         beta *= f * abs(dot(wi, n)) / pdf;
         ray.d = wi;
         ray.o = isect.p + ShadowEpsilon * n;

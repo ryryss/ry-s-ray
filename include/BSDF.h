@@ -68,8 +68,8 @@ public:
 class LambertianReflection : public BxDF {
 public:
     // LambertianReflection Public Methods
-    LambertianReflection(const Spectrum& R)
-        : BxDF(BxDFType(BSDF_REFLECTION | BSDF_DIFFUSE)), R(R) {}
+    LambertianReflection(const Spectrum& r)
+        : BxDF(BxDFType(BSDF_REFLECTION | BSDF_DIFFUSE)), R(r) {}
     Spectrum f(const ry::vec3& wo, const ry::vec3& wi) const override;
     Spectrum rho(const ry::vec3&, int, const ry::vec2*) const { return R; }
     Spectrum rho(int, const ry::vec2*, const ry::vec2*) const { return R; }
