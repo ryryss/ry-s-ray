@@ -10,23 +10,9 @@ using namespace alg;
 // Ambient Shading
 vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f;
 
-void Tracer::ProcessCamera()
-{
-    auto& cam = model->GetCam();
-    // use cam aspect ratio TODO: move function to loder
-    if (cam.type == "perspective") {
-        cam.ymag = cam.znear * tan(cam.yfov / 2);
-        cam.xmag = cam.ymag * cam.aspectRatio;
-    } else {
-        cam.xmag = cam.ymag * scr.w / scr.h;
-    }
-    tMin = cam.znear;
-    tMax = cam.zfar;
-}
-
 Tracer::Tracer()
 {
-    maxTraces = 256;
+    maxTraces = 512;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 
@@ -41,7 +27,8 @@ void Tracer::Excute(const Screen& s)
         scr = s;
         pixels.clear();
         pixels.resize(s.h * s.w);
-        ProcessCamera();
+        tMax = Loader::GetInstance().GetCam().zfar;
+        tMin = Loader::GetInstance().GetCam().znear;
     }
     Parallel();
 }
@@ -83,7 +70,7 @@ void Tracer::Parallel()
 Ray Tracer::RayGeneration(uint32_t x, uint32_t y)
 {
     vec3 o, d;
-    auto& cam = model->GetCam();
+    auto& cam = Loader::GetInstance().GetCam();
     float uu = -cam.xmag + 2 * cam.xmag * (x + 0.5) / scr.w;
     float vv = -cam.ymag + 2 * cam.ymag * (y + 0.5) / scr.h;
     if (cam.type == "perspective") {
@@ -124,39 +111,11 @@ int GetRandom(int i) {
 Spectrum Tracer::EstimateDirect(const Interaction& isect)
 {
     Spectrum Lo(0.);
-    // sample light
-    const auto& vs = model->GetVertices();
-    auto& lgt = model->GetLgt();
-    int lgtTriIdx = glm::linearRand(0, (int)lgt.tris.size() - 1);
-    auto lt = lgt.tris[lgtTriIdx];
-    auto& v0 = vs[lt.idx[0]].pos;
-    auto& v1 = vs[lt.idx[1]].pos;
-    auto& v2 = vs[lt.idx[2]].pos;
-    auto sp = SampleTriangle(v0, v1, v2);
-    vec3 wi = sp - isect.p;
-    float dist2 = glm::max(dot(wi, wi), 0.0f);
-    wi = normalize(wi);
 
-    isect.tri;
-    vec3 nt = model->GetTriNormalizeByBary(isect.tri.i, isect.tri.bary);
-    Interaction isect2;
-    if (Intersect(Ray{ isect.p + nt * ShadowEpsilon, wi }, length(sp - isect.p), &isect2)) {
-
-        return Spectrum(0.); // if hit any obeject without emissive = shadow
-    }
-
-    const Material& mat = model->GetMaterial(isect.tri.material);
-    vec3 kd = vec3(mat.pbrMetallicRoughness.baseColorFactor[0],
-        mat.pbrMetallicRoughness.baseColorFactor[1], mat.pbrMetallicRoughness.baseColorFactor[2]);
-
-    vec3 nl = model->GetTriNormalize(lgt.tris[lgtTriIdx].i);
-    float cosl = glm::max(0.f, dot(nl, -wi));
-    float cosp = glm::max(0.f, dot(nt, wi));
-    float pdf = 1.0f / lgt.area;
-    vec3 Le = lgt.I.c * lgt.emissiveStrength;// / (Pi * lgt.area);
-    vec3 f = kd / Pi;
-    Lo += f * Le * cosp * cosl / (dist2 * pdf);
-    return Lo;
+    auto& lgt = Loader::GetInstance().GetLgt();
+    Sampler s;
+    vec3 w;
+    return lgt.Sample_Li(s, &isect, w);
 }
 
 Spectrum Tracer::Li(const Ray& r)
@@ -168,11 +127,12 @@ Spectrum Tracer::Li(const Ray& r)
     for (int bounce = 0; bounce < 3/*bounces*/; bounce++) {
         Spectrum L(0.);
         // Lo += beta * Le;
-        if (!Intersect(ray, tMax, &isect)) {
+        if (!isect.Intersect(ray, Loader::GetInstance().GetTriangles(),
+            Loader::GetInstance().GetCam().znear, Loader::GetInstance().GetCam().zfar)) {
             Lo += beta * vec3(A);
             break;
-        } else if (model->isEmissive(isect.tri.material)) {
-            auto& lgt = model->GetLgt();
+        } else if (Loader::GetInstance().isEmissive(isect.tri->material)) {
+            auto& lgt = Loader::GetInstance().GetLgt();
             Lo += beta * lgt.I.c * lgt.emissiveStrength;
             break;
         }
@@ -180,17 +140,18 @@ Spectrum Tracer::Li(const Ray& r)
             // process specular 
         }
         Lo += EstimateDirect(isect);
-        const Material& mat = model->GetMaterial(isect.tri.material);
+
+        const Material& mat = Loader::GetInstance().GetMaterial(isect.tri->material);
         Spectrum kd = (vec3(mat.pbrMetallicRoughness.baseColorFactor[0],
             mat.pbrMetallicRoughness.baseColorFactor[1], mat.pbrMetallicRoughness.baseColorFactor[2]));
-        vec3 n = model->GetTriNormalizeByBary(isect.tri.i, isect.tri.bary);
-        isect.b = make_unique<BSDF>(n);
-        isect.b->Add(make_unique<LambertianReflection>(kd));
+        vec3 n = GetTriNormalizeByBary(isect.tri, isect.bary);
+        BSDF b(n);
+        b.Add(make_unique<LambertianReflection>(kd));
         // indirect
         Sampler s;
         float pdf;
         vec3 wi;
-        Spectrum f = isect.b->Sample_f(-ray.d, &wi, s.Get2D(), &pdf, BSDF_ALL);
+        Spectrum f = b.Sample_f(-ray.d, &wi, s.Get2D(), &pdf, BSDF_ALL);
         if (pdf <= 0) {
             break;
         }
@@ -212,7 +173,7 @@ Spectrum Tracer::Li(const Ray& r)
 vec4 Tracer::SampleTexture(const vec3& bary, const vec2& uv0, const vec2& uv1, const vec2& uv2)
 {
     vec2 uv = bary[0] * uv0 + bary[1] * uv1 + bary[2] * uv2;
-    const auto& image = model->GetTexTureImg();
+    const auto& image = Loader::GetInstance().GetTexTureImg();
     const auto* pixel = image.image.data();
     if (pixel == nullptr) {
         return vec4(1.0, 0, 0, 1.0);
@@ -226,51 +187,4 @@ vec4 Tracer::SampleTexture(const vec3& bary, const vec2& uv0, const vec2& uv1, c
              pixel[idx + 1] / 255.0f,
              pixel[idx + 2] / 255.0f,
             (image.component == 4) ? pixel[idx + 3] / 255.0f : 1.0f };
-}
-
-bool Tracer::Intersect(const Ray& r, const float dis, Interaction* isect)
-{
-    bool hit = false;
-    float t, gu, gv;
-    float mt = tMax;
-    const auto& ts = model->GetTriangles();
-    const auto& vs = model->GetVertices();
-    for (auto& it : ts) {
-        const vec3& a = vs[it.idx[0]].pos;
-        const vec3& b = vs[it.idx[1]].pos;
-        const vec3& c = vs[it.idx[2]].pos;
-        if (Moller_Trumbore(r.o, r.d, a, b, c, t, gu, gv) &&
-            t > tMin && t < dis && t < mt && t < tMax) {
-            mt = t;
-            *isect = Interaction(it, mt);
-            isect->tri.bary = { 1 - gu - gv, gu, gv };
-            isect->p = r.o + t * r.d;
-            hit = true;
-        }
-    }
-    return hit;
-}
-
-bool Tracer::IntersectAny(const Ray& r, const float dis, Interaction* isect)
-{
-    bool hit = false;
-    float t, gu, gv;
-    float mt = tMax;
-    const auto& ts = model->GetTriangles();
-    const auto& vs = model->GetVertices();
-    for (auto& it : ts) {
-        const vec3& a = vs[it.idx[0]].pos;
-        const vec3& b = vs[it.idx[1]].pos;
-        const vec3& c = vs[it.idx[2]].pos;
-        if (Moller_Trumbore(r.o, r.d, a, b, c, t, gu, gv) &&
-            t > tMin && t < dis && t < mt && t < tMax) {
-            mt = t;
-            *isect = Interaction(it, mt);
-            isect->tri.bary = { 1 - gu - gv, gu, gv };
-            isect->p = r.o + t * r.d;
-            hit = true;
-            break;
-        }
-    }
-    return hit;
 }

@@ -2,8 +2,18 @@
 #define LODER
 #include "pub.h"
 #include "light.h"
+#include "algorithm.h"
+
 class Loader {
 public:
+    Loader(const Loader&) = delete;
+    Loader& operator=(const Loader&) = delete;
+    static Loader& GetInstance() {
+        static Loader instance;
+        return instance;
+    }
+    void ProcessCamera(const ry::Screen& scr);
+
     bool LoadFromFile(const std::string& filepath);
     inline ry::Camera& GetCam() {
         return cam;
@@ -30,10 +40,9 @@ public:
                  model.materials[i].emissiveFactor[2] > 0.0f));
     }
 
-    ry::vec3 GetTriNormalizeByBary(int i, const ry::vec3& bary);
-    ry::vec3 GetTriNormalize(int i);
-
 private:
+    Loader() {}
+
     std::vector<uint32_t> ParseVertIdx(const tinygltf::Primitive& p);
     void ParsePrimitive(const tinygltf::Primitive& p, const ry::mat4& m);
     void ParseTexTure(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);
@@ -46,6 +55,7 @@ private:
     void ParseChildNode(int num);
     void ParseCam(int num);
     void ParseLgt(int num);
+    void ParseTrigles();
 
     ry::mat4 GetNodeMat(int num);
 
@@ -56,5 +66,7 @@ private:
     std::vector <ry::Light> lgts;
     std::vector<ry::Vertex> vertices;
     std::vector<ry::Triangle> triangles;
+
+    float tMin, tMax;
 };
 #endif

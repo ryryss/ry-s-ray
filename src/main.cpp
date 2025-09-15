@@ -17,14 +17,14 @@ int main(int argc, char* argv[]) {
     } else {
         input = argv[1];
     }
-    Loader model;
+    auto& model = Loader::GetInstance();
     if (!model.LoadFromFile(input)) {
         throw("can not open glb/gltf.");
     }
     auto& d = Display::GetInstance();
+    model.ProcessCamera({ d.getWindowWidth(), d.getWindowHeight() });
 
     Tracer r;
-    r.SetModel(&model);
     auto now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
     r.Excute({ d.getWindowWidth(), d.getWindowHeight() });
     cout << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - now << endl;

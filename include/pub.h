@@ -36,6 +36,17 @@ using vec2 = glm::vec2;
 using vec4 = glm::vec4;
 using mat4 = glm::mat4;
 
+class Sampler {
+public:
+    Sampler() {}
+    ry::vec2 Get2D() const {
+        return ry::vec2(glm::linearRand(0.0f, 1.0f), glm::linearRand(0.0f, 1.0f));
+    }
+    float Get1D() const {
+        return glm::linearRand(0.0f, 1.0f);
+    }
+};
+
 struct Vertex {
     vec3 pos;
     vec4 color = vec4(1.0);
@@ -46,9 +57,9 @@ struct Vertex {
 
 struct Triangle {
     vec4 color;
-    uint32_t idx[3]; // use for  model vertices
-    vec3 bary; // barycentric
     int material;
+    Vertex* vts[3];
+    vec3 normal;
     int i;
 };
 
@@ -82,6 +93,20 @@ struct Camera : public Node {
 };
 
 using Material = tinygltf::Material;
+
+struct Ray {
+    vec3 o;
+    vec3 d;
+};
+
+struct Interaction { // now just triangle
+    const Triangle* tri;
+    vec3 bary; // barycentric
+    vec3 p;
+    float tMin;
+
+    bool Intersect(const Ray& r, const std::vector<Triangle>& tris, float tMin, float tMax);
+};
 
 struct Screen {
     uint16_t w = 0;
@@ -117,5 +142,12 @@ inline void PrintMat4(mat4 m)
     std::cout << glm::to_string(m) << std::endl;
 }
 
+inline vec3 GetTriNormalizeByBary(const Triangle* tri, const vec3& bary)
+{
+    const auto a = tri->vts[0];
+    const auto b = tri->vts[1];
+    const auto c = tri->vts[2];
+    return normalize(bary[0] * a->normal + bary[1] * a->normal + bary[2] * a->normal);
+}
 }
 #endif // !PUB

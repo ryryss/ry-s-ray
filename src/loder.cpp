@@ -2,11 +2,13 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "loder.h"
+#include "algorithm.h"
 
 using namespace std;
 using namespace tinygltf;
 using namespace ry;
 using namespace glm;
+using namespace alg;
 
 bool Loader::LoadFromFile(const string& file)
 {
@@ -21,7 +23,8 @@ bool Loader::LoadFromFile(const string& file)
         cerr << "Failed to load GLB: " << file << endl;
         return false;
     }
-
+    triangles.reserve(10000);
+    vertices.reserve(10000);
     ParseNode();
     for (int i = 0; i < nodes.size(); i++) {
         const auto& n = model.nodes[i];
@@ -127,9 +130,6 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
     ParseVertColor(p, vert);
 
     int vSize = vertices.size();
-    int tSize = triangles.size();
-    triangles.resize(tSize + idx.size() / 3);
-
     // apply trans
     mat3 n_m = transpose(inverse(mat3(m)));
     for (auto i = 0; i < vert.size(); i++) {
@@ -137,7 +137,7 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
         vert[i].normal = normalize(n_m * vert[i].normal);
         vert[i].i = i + vSize;
     }
-
+    vertices.insert(vertices.end(), vert.begin(), vert.end());
     if (isEmissive(p.material)) {
         // TODO emissive texture
         auto& m = model.materials[p.material];
@@ -157,21 +157,21 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
 
     // collect tris
     for (int i = 0; i < idx.size(); i+=3) {
-        auto& tri = triangles[i / 3 + tSize];
-        tri.idx[0] = idx[i] + vSize;
-        tri.idx[1] = idx[i + 1] + vSize;
-        tri.idx[2] = idx[i + 2] + vSize;
+        triangles.push_back(Triangle());
+        auto& tri = triangles.back();
+        tri.vts[0] = &vertices[idx[i + 0] + vSize];
+        tri.vts[1] = &vertices[idx[i + 1] + vSize];
+        tri.vts[2] = &vertices[idx[i + 2] + vSize];
         tri.material = p.material;
-        tri.i = i / 3 + tSize;
-
+        tri.i = triangles.size();
+        tri.normal = normalize(cross(tri.vts[1]->pos - tri.vts[0]->pos, tri.vts[2]->pos - tri.vts[0]->pos));
         if (isEmissive(p.material)) {
-            lgts.back().tris.push_back(tri);
-            vec3 e1 = vert[idx[i + 1]].pos - vert[idx[i]].pos;
-            vec3 e2 = vert[idx[i + 2]].pos - vert[idx[i]].pos;
+            lgts.back().tris.push_back(&tri);
+            vec3 e1 = tri.vts[1]->pos - tri.vts[0]->pos;
+            vec3 e2 = tri.vts[2]->pos - tri.vts[0]->pos;
             lgts.back().area += 0.5f * length(cross(e1, e2));    
         }
     }
-    vertices.insert(vertices.end(), vert.begin(), vert.end());
     cout << "parse result : vertices size = "  << vert.size()
         << " triangles size = " << idx.size() / 3 << endl;
 }
@@ -428,7 +428,7 @@ void Loader::ParseChildNode(int num)
     }
 }
 
- mat4 Loader::GetNodeMat(int num)
+mat4 Loader::GetNodeMat(int num)
 {
      mat4 t = mat4(1.0f);
      if (num < 0) {
@@ -455,20 +455,36 @@ void Loader::ParseChildNode(int num)
     return t;
 }
 
-vec3 Loader::GetTriNormalizeByBary(int i, const vec3& bary)
+void Loader::ProcessCamera(const Screen& scr)
 {
-    auto tri = triangles[i];
-    const auto& a = vertices[tri.idx[0]];
-    const auto& b = vertices[tri.idx[1]];
-    const auto& c = vertices[tri.idx[2]];
-    return normalize(bary[0] * a.normal + bary[1] * b.normal + bary[2] * c.normal);
+    // use cam aspect ratio TODO: move function to loder
+    if (cam.type == "perspective") {
+        cam.ymag = cam.znear * tan(cam.yfov / 2);
+        cam.xmag = cam.ymag * cam.aspectRatio;
+    } else {
+        cam.xmag = cam.ymag * scr.w / scr.h;
+    }
+    tMin = cam.znear;
+    tMax = cam.zfar;
 }
 
-vec3 Loader::GetTriNormalize(int i)
+bool Interaction::Intersect(const Ray& r, const vector<Triangle>& tris, float tMin, float tMax)
 {
-    auto tri = triangles[i];
-    const auto& a = vertices[tri.idx[0]].pos;
-    const auto& b = vertices[tri.idx[1]].pos;
-    const auto& c = vertices[tri.idx[2]].pos;
-    return normalize(cross(b - a, c -a));
+    bool hit = false;
+    float t, gu, gv;
+    this->tMin = tMax;
+    for (auto& it : tris) {
+        const vec3& a = it.vts[0]->pos;
+        const vec3& b = it.vts[1]->pos;
+        const vec3& c = it.vts[2]->pos;
+        if (alg::Moller_Trumbore(r.o, r.d, a, b, c, t, gu, gv) &&
+            t > tMin && t < this->tMin && t < tMax) {
+            this->tMin = t;
+            this->tri = &it;
+            this->bary = { 1 - gu - gv, gu, gv };
+            this->p = r.o + t * r.d;
+            hit = true;
+        }
+    }
+    return hit;
 }
