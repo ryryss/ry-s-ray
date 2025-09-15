@@ -26,7 +26,7 @@ void Tracer::ProcessCamera()
 
 Tracer::Tracer()
 {
-    maxTraces = 4;
+    maxTraces = 256;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 
@@ -141,10 +141,8 @@ Spectrum Tracer::EstimateDirect(const Interaction& isect)
     vec3 nt = model->GetTriNormalizeByBary(isect.tri.i, isect.tri.bary);
     Interaction isect2;
     if (Intersect(Ray{ isect.p + nt * ShadowEpsilon, wi }, length(sp - isect.p), &isect2)) {
-        const Material& mat = model->GetMaterial(isect2.tri.material);
-        if (!model->isEmissive(isect2.tri.material)) {
-            return Spectrum(0.); // if hit any obeject without emissive = shadow
-        }
+
+        return Spectrum(0.); // if hit any obeject without emissive = shadow
     }
 
     const Material& mat = model->GetMaterial(isect.tri.material);
@@ -155,7 +153,7 @@ Spectrum Tracer::EstimateDirect(const Interaction& isect)
     float cosl = glm::max(0.f, dot(nl, -wi));
     float cosp = glm::max(0.f, dot(nt, wi));
     float pdf = 1.0f / lgt.area;
-    vec3 Le = lgt.I.c * lgt.emissiveStrength * 0.3f;// / (Pi * lgt.area);
+    vec3 Le = lgt.I.c * lgt.emissiveStrength;// / (Pi * lgt.area);
     vec3 f = kd / Pi;
     Lo += f * Le * cosp * cosl / (dist2 * pdf);
     return Lo;
@@ -175,7 +173,7 @@ Spectrum Tracer::Li(const Ray& r)
             break;
         } else if (model->isEmissive(isect.tri.material)) {
             auto& lgt = model->GetLgt();
-            Lo += beta * lgt.I.c * lgt.emissiveStrength * 0.3f;
+            Lo += beta * lgt.I.c * lgt.emissiveStrength;
             break;
         }
         if (bounce == 0) {

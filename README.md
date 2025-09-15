@@ -25,6 +25,7 @@ This project requires the following third-party libraries:
 - v1.0.1 multi-primitive, light,  simple texture support
 - v1.0.2 simple shadow support
 - v1.0.3 fix some bug
+- v1.1.0 PBRT base
 
 ## Test File
 See https://github.com/KhronosGroup/glTF-Sample-Models
@@ -36,9 +37,9 @@ The color of the triangular face was directly used without interpolation.
 
 ![](rendering%20effect/v1.0.1.png)
 
-v1.0.3
+v1.1.0
 
-The lighting still has a little bugs, missing the reflectivity coefficient provided by the materials.
+PBRT base,  sample implement Lambert diffuse reflection and cos hemispherical sampling
 
-![](rendering%20effect/v1.0.3.png)
+![](rendering%20effect/v1.1.0.png)
 
