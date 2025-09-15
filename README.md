@@ -9,10 +9,10 @@ This project requires the following third-party libraries:
 -  glfw
 
 ## Features
-1、receive a simple glb/gltf input
-2、use the first camera  and the first light found to render target
-3、also only  the first found texture used  :)
-4、[TODO: reading *Physically Based Rendering*](https://github.com/mmp/pbr-book-website) 
+- receive a simple glb/gltf input
+- use the first camera  and the first light found to render target
+- also only  the first found texture used  :)
+- [TODO: reading *Physically Based Rendering*](https://github.com/mmp/pbr-book-website) 
 
 ## Hardware
  intel i7-8700
@@ -29,7 +29,6 @@ This project requires the following third-party libraries:
 
 ## Test File
 See https://github.com/KhronosGroup/glTF-Sample-Models
-
 
 v1.0.1
 
