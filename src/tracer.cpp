@@ -12,13 +12,15 @@ vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f;
 
 Tracer::Tracer()
 {
-    maxTraces = 4;
+    maxTraces = 16;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 
 void Tracer::Excute()
 {
-    for (int i = 0; i < maxTraces; i++) {
+    sppBuffer.clear();
+    for (int i = 1; i <= maxTraces; i++) {
+        currentTraces = i;
         Parallel();
     }
 }
@@ -33,6 +35,8 @@ void Tracer::SetInOutPut(const ry::Screen& s, Loader* m, ry::vec4* p)
         scr = s;
         tMax = Loader::GetInstance().GetCam().zfar;
         tMin = Loader::GetInstance().GetCam().znear;
+        sppBuffer.clear();
+        sppBuffer.resize(scr.h * scr.w);
     }
     scr = s;
     pixels = p;
@@ -48,8 +52,9 @@ void Tracer::Parallel()
             // use the number of pixels on the y-axis to parallel cal
             for (uint16_t y = i * h; y < (i + 1) * h; y++) {
                 for (uint16_t x = 0; x < scr.w; x++) {
-                    // NEED FIX : when maxTraces is a big number, there will be serious errors in the results
-                    pixels[y * scr.w + x] += vec4(RayCompute(x, y).c / (float)maxTraces, 1.0);
+                    uint32_t num = y * scr.w + x;
+                    sppBuffer[num] += vec4(RayCompute(x, y).c, 1.0);
+                    pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
                 }
             }
         });
@@ -59,7 +64,9 @@ void Tracer::Parallel()
     if (auto mod = scr.h % w_cnt; mod) {
         for (uint16_t y = scr.h / w_cnt * w_cnt; y < scr.h; y++) {
             for (uint16_t x = 0; x < scr.w; x++) {
-                pixels[y * scr.w + x] += vec4(RayCompute(x, y).c / (float)maxTraces, 1.0);
+                uint32_t num = y * scr.w + x;
+                sppBuffer[num] += vec4(RayCompute(x, y).c, 1.0);
+                pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
             }
         }
     }

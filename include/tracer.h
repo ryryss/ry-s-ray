@@ -22,10 +22,10 @@ private:
 
 	ry::Screen scr;
 	ry::vec4* pixels;
-	// std::vector<ry::vec4> sppBuffer;
+	std::vector<ry::vec4> sppBuffer;
 	float tMin, tMax;
 	uint16_t maxTraces = 16; // spp
-
+	uint16_t currentTraces = 0;
 	Loader* model; // or scene
 };
 #endif
