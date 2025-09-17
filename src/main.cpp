@@ -22,14 +22,24 @@ int main(int argc, char* argv[]) {
         throw("can not open glb/gltf.");
     }
     auto& d = Display::GetInstance();
-    model.ProcessCamera({ d.getWindowWidth(), d.getWindowHeight() });
+    model.ProcessCamera({d.getWindowWidth(), d.getWindowHeight()});
 
+    bool keepRender = true;
     Tracer r;
-    auto now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-    r.Excute({ d.getWindowWidth(), d.getWindowHeight() });
-    cout << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - now << endl;
+    r.SetInOutPut({ d.getWindowWidth(), d.getWindowHeight() }, &model, d.GetPixels().data());
+    thread t([&r, &keepRender](){
+        // while (keepRender) {
+            auto now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+            r.Excute();
+            cout << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - now << endl;
+        // }
+    });
+    t.detach();
+
     while (1) {
-        d.UpdateFrame(r.GetResult().data());
+        d.UpdateFrame();
+        Sleep(50);
     }
+    keepRender = false;
     return 0;
 }

@@ -12,6 +12,7 @@
 #include <chrono>
 #include <random>
 #include <numeric>
+#include <thread>
 static float ShadowEpsilon = 0.0001f;
 static float Pi = 3.14159265358979323846;
 static float InvPi = 0.31830988618379067154;

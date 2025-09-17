@@ -2,9 +2,9 @@
 using namespace std;
 
 Task::Task() : stop(false) {
-    size_t cores = std::thread::hardware_concurrency() - 1;
+    cores = std::thread::hardware_concurrency() - 1;
     if (cores <= 0) {
-        cores = 2;
+        cores = 2; // may be need send a warnning in here
     }
     w.reserve(cores);
     for (size_t i = 0; i < cores; ++i) {

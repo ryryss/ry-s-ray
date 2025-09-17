@@ -16,33 +16,39 @@ Tracer::Tracer()
     cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 
-void Tracer::Excute(const Screen& s)
+void Tracer::Excute()
+{
+    for (int i = 0; i < maxTraces; i++) {
+        Parallel();
+    }
+}
+
+void Tracer::SetInOutPut(const ry::Screen& s, Loader* m, ry::vec4* p)
 {
     if (s.h <= 0 && s.w <= 0) {
         // throw ("");
-    }
-    else if (scr.h == s.h && scr.w == s.w) {
-        
+    } else if (scr.h == s.h && scr.w == s.w) {
+
     } else {
         scr = s;
-        pixels.clear();
-        pixels.resize(s.h * s.w);
         tMax = Loader::GetInstance().GetCam().zfar;
         tMin = Loader::GetInstance().GetCam().znear;
     }
-    Parallel();
+    scr = s;
+    pixels = p;
+    model = m;
 }
 
 void Tracer::Parallel()
 {
     auto& t = Task::GetInstance();
-    auto w_cnt = t.WokerCnt() - 1;
+    auto w_cnt = t.WokerCnt();
     for (auto i = 0; i < w_cnt; i ++) {
         t.Add([this, i, &t, h = scr.h / w_cnt]() {
             // use the number of pixels on the y-axis to parallel cal
             for (uint16_t y = i * h; y < (i + 1) * h; y++) {
                 for (uint16_t x = 0; x < scr.w; x++) {
-                    pixels[y * scr.w + x] = vec4(RayCompute(x, y).c, 1.0);
+                    pixels[y * scr.w + x] += vec4(RayCompute(x, y).c / (float)maxTraces, 1.0);
                 }
             }
         });
@@ -52,7 +58,7 @@ void Tracer::Parallel()
     if (auto mod = scr.h % w_cnt; mod) {
         for (uint16_t y = scr.h / w_cnt * w_cnt; y < scr.h; y++) {
             for (uint16_t x = 0; x < scr.w; x++) {
-                pixels[y * scr.w + x] = vec4(RayCompute(x, y).c, 1.0);
+                pixels[y * scr.w + x] += vec4(RayCompute(x, y).c / (float)maxTraces, 1.0);
             }
         }
     }
@@ -70,7 +76,7 @@ void Tracer::Parallel()
 Ray Tracer::RayGeneration(uint32_t x, uint32_t y)
 {
     vec3 o, d;
-    auto& cam = Loader::GetInstance().GetCam();
+    auto& cam = model->GetCam();
     float uu = -cam.xmag + 2 * cam.xmag * (x + 0.5) / scr.w;
     float vv = -cam.ymag + 2 * cam.ymag * (y + 0.5) / scr.h;
     if (cam.type == "perspective") {
@@ -87,10 +93,8 @@ Spectrum Tracer::RayCompute(uint32_t x, uint32_t y)
 {
     Ray r = RayGeneration(x, y); 
     Spectrum Lo(0.);
-    for (int i = 0; i < maxTraces; i++) {
-        Lo += Li(r);
-    }
-    return Lo / maxTraces;
+    Lo += Li(r);
+    return Lo;
 }
 
 vec3 SampleTriangle(const vec3& a, const vec3& b, const vec3& c){
@@ -107,7 +111,7 @@ vec3 SampleTriangle(const vec3& a, const vec3& b, const vec3& c){
 Spectrum Tracer::EstimateDirect(const Interaction& isect)
 {
     Spectrum Lo(0.);
-    auto& lgt = Loader::GetInstance().GetLgt();
+    auto& lgt = model->GetLgt();
     Sampler s;
     vec3 w;
     return lgt.Sample_Li(s, &isect, w);
@@ -122,12 +126,12 @@ Spectrum Tracer::Li(const Ray& r)
     for (int bounce = 0; bounce < 3/*bounces*/; bounce++) {
         Spectrum L(0.);
         // Lo += beta * Le;
-        if (!isect.Intersect(ray, Loader::GetInstance().GetTriangles(),
-            Loader::GetInstance().GetCam().znear, Loader::GetInstance().GetCam().zfar)) {
+        if (!isect.Intersect(ray, model->GetTriangles(),
+            model->GetCam().znear, model->GetCam().zfar)) {
             Lo += beta * vec3(A);
             break;
-        } else if (Loader::GetInstance().isEmissive(isect.tri->material)) {
-            auto& lgt = Loader::GetInstance().GetLgt();
+        } else if (model->isEmissive(isect.tri->material)) {
+            auto& lgt = model->GetLgt();
             Lo += beta * lgt.I.c * lgt.emissiveStrength;
             break;
         }
@@ -136,7 +140,7 @@ Spectrum Tracer::Li(const Ray& r)
         }
         Lo += EstimateDirect(isect);
 
-        const Material& mat = Loader::GetInstance().GetMaterial(isect.tri->material);
+        const Material& mat = model->GetMaterial(isect.tri->material);
         Spectrum kd = (vec3(mat.pbrMetallicRoughness.baseColorFactor[0],
             mat.pbrMetallicRoughness.baseColorFactor[1], mat.pbrMetallicRoughness.baseColorFactor[2]));
         vec3 n = GetTriNormalizeByBary(isect.tri, isect.bary);
@@ -168,7 +172,7 @@ Spectrum Tracer::Li(const Ray& r)
 vec4 Tracer::SampleTexture(const vec3& bary, const vec2& uv0, const vec2& uv1, const vec2& uv2)
 {
     vec2 uv = bary[0] * uv0 + bary[1] * uv1 + bary[2] * uv2;
-    const auto& image = Loader::GetInstance().GetTexTureImg();
+    const auto& image = model->GetTexTureImg();
     const auto* pixel = image.image.data();
     if (pixel == nullptr) {
         return vec4(1.0, 0, 0, 1.0);

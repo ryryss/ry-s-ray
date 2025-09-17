@@ -54,5 +54,7 @@ private:
     std::condition_variable c;
     std::atomic<bool> stop;
     std::atomic<uint8_t> t_cnt;
+
+    size_t cores;
 };
 #endif

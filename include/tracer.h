@@ -7,10 +7,8 @@
 class Tracer {
 public:
 	Tracer();
-	void Excute(const ry::Screen& s);
-	std::vector<ry::vec4>& GetResult() {
-		return pixels;
-	}
+	void Excute();
+	void SetInOutPut(const ry::Screen& s, Loader* m, ry::vec4* p);
 private:
 	void Parallel();
 	ry::Ray RayGeneration(uint32_t x, uint32_t y);
@@ -23,8 +21,11 @@ private:
 	Spectrum EstimateDirect(const ry::Interaction& isect);
 
 	ry::Screen scr;
-	std::vector<ry::vec4> pixels;
+	ry::vec4* pixels;
+	// std::vector<ry::vec4> sppBuffer;
 	float tMin, tMax;
-	uint16_t maxTraces = 16; // for ervery pixel
+	uint16_t maxTraces = 16; // spp
+
+	Loader* model; // or scene
 };
 #endif
