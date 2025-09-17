@@ -1,5 +1,5 @@
 #include "light.h"
-#include "loder.h"
+#include "loader.h"
 
 using namespace ry;
 using namespace std;
@@ -26,14 +26,16 @@ Spectrum Light::Sample_Li(const Sampler& s, const Interaction* isect, vec3& wi)
     wi = samplePoint - isect->p;
     float dist2 = glm::max(dot(wi, wi), 0.0f);
     wi = normalize(wi);
-    vec3 nt = normalize(isect->bary[0] * a->normal + isect->bary[1] * b->normal + isect->bary[2] * c->normal);
+    vec3 nt = normalize(isect->bary[0] * isect->tri->vts[0]->normal + 
+        isect->bary[1] * isect->tri->vts[1]->normal + 
+        isect->bary[2] * isect->tri->vts[2]->normal);
     Interaction isect2;
     if (isect2.Intersect(Ray{ isect->p + nt * ShadowEpsilon, wi }, model.GetTriangles(),
-        length(samplePoint - isect->p), model.GetCam().zfar)) {
+        model.GetCam().zfar, length(samplePoint - isect->p))) {
         return Spectrum(0.); // if hit any obeject (include emissive) = shadow
     }
 
-    const Material& mat = model.GetMaterial(tri->material);
+    const Material& mat = model.GetMaterial(isect->tri->material);
     vec3 kd = vec3(mat.pbrMetallicRoughness.baseColorFactor[0],
         mat.pbrMetallicRoughness.baseColorFactor[1], mat.pbrMetallicRoughness.baseColorFactor[2]);
 

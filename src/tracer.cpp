@@ -12,7 +12,7 @@ vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f;
 
 Tracer::Tracer()
 {
-    maxTraces = 512;
+    maxTraces = 16;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 
@@ -104,14 +104,9 @@ vec3 SampleTriangle(const vec3& a, const vec3& b, const vec3& c){
     return (1 - u - v) * a + u * b + v * c;
 }
 
-int GetRandom(int i) {
-    return rand() % i + 1;
-}
-
 Spectrum Tracer::EstimateDirect(const Interaction& isect)
 {
     Spectrum Lo(0.);
-
     auto& lgt = Loader::GetInstance().GetLgt();
     Sampler s;
     vec3 w;

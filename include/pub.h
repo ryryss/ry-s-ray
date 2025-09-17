@@ -11,6 +11,7 @@
 #include <array>
 #include <chrono>
 #include <random>
+#include <numeric>
 static float ShadowEpsilon = 0.0001f;
 static float Pi = 3.14159265358979323846;
 static float InvPi = 0.31830988618379067154;
@@ -94,9 +95,25 @@ struct Camera : public Node {
 
 using Material = tinygltf::Material;
 
+inline void PrintVec(vec3 v)
+{
+    for (int i = 0; i < 3; i++) {
+        if (std::fabs(v[i]) < 1e-6f) {
+            std::cout << 0 << " ";
+        } else {
+            std::cout << v[i] << " ";
+        }
+    }
+    std::cout << std::endl;
+}
 struct Ray {
     vec3 o;
     vec3 d;
+    vec3 dInv;
+    int sign[3];
+    Ray(const vec3& origin, const vec3& dir) : o(origin), d(dir) {
+        dInv = vec3(1.0f / dir.x, 1.0f / dir.y, 1.0f / dir.z);
+    }
 };
 
 struct Interaction { // now just triangle
@@ -113,17 +130,6 @@ struct Screen {
     uint16_t h = 0;
 };
 
-inline void PrintVec(vec3 v)
-{
-    for (int i = 0; i < 3; i++) {
-        if (std::fabs(v[i]) < 1e-6f) {
-            std::cout << 0 << " ";
-        } else {
-            std::cout << v[i] << " ";
-        }   
-    }
-    std::cout << std::endl;
-}
 
 inline void PrintMat4(mat4 m)
 {

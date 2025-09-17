@@ -1,7 +1,7 @@
 #ifndef	RAY_TRACE
 #define RAY_TRACE
 #include "pub.h"
-#include "loder.h"
+#include "loader.h"
 #include "BSDF.h"
 
 class Tracer {

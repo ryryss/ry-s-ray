@@ -1,7 +1,7 @@
 ﻿#include <Windows.h>
 #include "pub.h"
 #include "display.h"
-#include "loder.h"
+#include "loader.h"
 #include "tracer.h"
 
 using namespace std;

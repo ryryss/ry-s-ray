@@ -1,9 +1,9 @@
-#ifndef LODER
-#define LODER
+#ifndef LOADER
+#define LOADER
 #include "pub.h"
 #include "light.h"
 #include "algorithm.h"
-
+#include "BVH.h"
 class Loader {
 public:
     Loader(const Loader&) = delete;
@@ -33,6 +33,10 @@ public:
     inline const ry::Material GetMaterial(int i) {
         return model.materials.size() <= 0 ? ry::Material() : model.materials[i];
     }
+    inline const std::shared_ptr<BVH> GetBvh() {
+        return bvh;
+    }
+
     inline bool isEmissive(int i) {
         return (!(model.materials.size() <= 0) &&
                 (model.materials[i].emissiveFactor[0] > 0.0f ||
@@ -55,7 +59,6 @@ private:
     void ParseChildNode(int num);
     void ParseCam(int num);
     void ParseLgt(int num);
-    void ParseTrigles();
 
     ry::mat4 GetNodeMat(int num);
 
@@ -68,5 +71,6 @@ private:
     std::vector<ry::Triangle> triangles;
 
     float tMin, tMax;
+    std::shared_ptr<BVH> bvh;
 };
 #endif

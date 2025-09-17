@@ -1,9 +1,9 @@
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "loder.h"
+#include "loader.h"
 #include "algorithm.h"
-
+#include "BVH.h"
 using namespace std;
 using namespace tinygltf;
 using namespace ry;
@@ -46,6 +46,7 @@ bool Loader::LoadFromFile(const string& file)
     if (!lgts.size()) {
         ParseLgt(-1);
     }
+    bvh = make_shared<BVH>(triangles.size());
     return true;
 }
 
@@ -457,7 +458,6 @@ mat4 Loader::GetNodeMat(int num)
 
 void Loader::ProcessCamera(const Screen& scr)
 {
-    // use cam aspect ratio TODO: move function to loder
     if (cam.type == "perspective") {
         cam.ymag = cam.znear * tan(cam.yfov / 2);
         cam.xmag = cam.ymag * cam.aspectRatio;
@@ -468,19 +468,25 @@ void Loader::ProcessCamera(const Screen& scr)
     tMax = cam.zfar;
 }
 
-bool Interaction::Intersect(const Ray& r, const vector<Triangle>& tris, float tMin, float tMax)
+bool Interaction::Intersect(const Ray& r, const vector<Triangle>& tr8, float tMin, float tMax)
 {
+    auto bvh = Loader::GetInstance().GetBvh();
+    auto& tris = Loader::GetInstance().GetTriangles();
+    vector<uint64_t> tIdxs;
+    bvh->TraverseBVH(tIdxs, r);
+
     bool hit = false;
     float t, gu, gv;
     this->tMin = tMax;
-    for (auto& it : tris) {
-        const vec3& a = it.vts[0]->pos;
-        const vec3& b = it.vts[1]->pos;
-        const vec3& c = it.vts[2]->pos;
+    for (auto& i : tIdxs) {
+        auto& tri = tris[i];
+        const vec3& a = tri.vts[0]->pos;
+        const vec3& b = tri.vts[1]->pos;
+        const vec3& c = tri.vts[2]->pos;
         if (alg::Moller_Trumbore(r.o, r.d, a, b, c, t, gu, gv) &&
             t > tMin && t < this->tMin && t < tMax) {
             this->tMin = t;
-            this->tri = &it;
+            this->tri = &tri;
             this->bary = { 1 - gu - gv, gu, gv };
             this->p = r.o + t * r.d;
             hit = true;
