@@ -13,7 +13,7 @@ public:
     float area = 0.0f;
     float emissiveStrength;
     Spectrum I; // or emissiveFactor
-    std::vector<ry::Triangle*> tris;
+    std::vector<uint64_t> tris;
 };
 }
 #endif

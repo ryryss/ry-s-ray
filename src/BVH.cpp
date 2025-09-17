@@ -13,17 +13,16 @@ AABB BVH::ComputeBounds(const vector<uint64_t>& indices)
     auto& tris = Loader::GetInstance().GetTriangles();
     AABB box;
     for (auto idx : indices) {
-        const Triangle& t = tris[idx];
-        box.expand(t.vts[0]->pos);
-        box.expand(t.vts[1]->pos);
-        box.expand(t.vts[2]->pos);
+        auto vts = Loader::GetInstance().GetTriVts(idx);
+        box.expand(vts[0]->pos);
+        box.expand(vts[1]->pos);
+        box.expand(vts[2]->pos);
     }
     return box;
 }
 
 std::shared_ptr<BVHNode> BVH::BuildNode(vector<uint64_t>& indices)
 {
-    auto& tris = Loader::GetInstance().GetTriangles();
     auto node = std::make_shared<BVHNode>();
     node->box = ComputeBounds(indices);
     if (indices.size() <= maxLeafSize) {
@@ -39,8 +38,10 @@ std::shared_ptr<BVHNode> BVH::BuildNode(vector<uint64_t>& indices)
     // use triangle centroid to sort
     std::sort(indices.begin(), indices.end(),
         [&](int a, int b) {
-            vec3 ca = (tris[a].vts[0]->pos + tris[a].vts[1]->pos + tris[a].vts[2]->pos) / 3.0f;
-            vec3 cb = (tris[b].vts[0]->pos + tris[b].vts[1]->pos + tris[b].vts[2]->pos) / 3.0f;
+            auto vtsa = Loader::GetInstance().GetTriVts(a);
+            auto vtsb = Loader::GetInstance().GetTriVts(b);
+            vec3 ca = (vtsa[0]->pos + vtsa[1]->pos + vtsa[2]->pos) / 3.0f;
+            vec3 cb = (vtsb[0]->pos + vtsb[1]->pos + vtsb[2]->pos) / 3.0f;
             return ca[axis] < cb[axis];
         });
     // median-split

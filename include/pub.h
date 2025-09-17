@@ -60,7 +60,7 @@ struct Vertex {
 struct Triangle {
     vec4 color;
     int material;
-    Vertex* vts[3];
+    uint32_t vertIdx[3];
     vec3 normal;
     int i;
 };
@@ -131,7 +131,6 @@ struct Screen {
     uint16_t h = 0;
 };
 
-
 inline void PrintMat4(mat4 m)
 {
     /*for (int i = 0; i < 4; i++) {
@@ -147,14 +146,6 @@ inline void PrintMat4(mat4 m)
 
     // be care glm is col major
     std::cout << glm::to_string(m) << std::endl;
-}
-
-inline vec3 GetTriNormalizeByBary(const Triangle* tri, const vec3& bary)
-{
-    const auto a = tri->vts[0];
-    const auto b = tri->vts[1];
-    const auto c = tri->vts[2];
-    return normalize(bary[0] * a->normal + bary[1] * a->normal + bary[2] * a->normal);
 }
 }
 #endif // !PUB

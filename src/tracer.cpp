@@ -12,7 +12,7 @@ vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f;
 
 Tracer::Tracer()
 {
-    maxTraces = 16;
+    maxTraces = 4;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 
@@ -48,6 +48,7 @@ void Tracer::Parallel()
             // use the number of pixels on the y-axis to parallel cal
             for (uint16_t y = i * h; y < (i + 1) * h; y++) {
                 for (uint16_t x = 0; x < scr.w; x++) {
+                    // NEED FIX : when maxTraces is a big number, there will be serious errors in the results
                     pixels[y * scr.w + x] += vec4(RayCompute(x, y).c / (float)maxTraces, 1.0);
                 }
             }
@@ -143,7 +144,10 @@ Spectrum Tracer::Li(const Ray& r)
         const Material& mat = model->GetMaterial(isect.tri->material);
         Spectrum kd = (vec3(mat.pbrMetallicRoughness.baseColorFactor[0],
             mat.pbrMetallicRoughness.baseColorFactor[1], mat.pbrMetallicRoughness.baseColorFactor[2]));
-        vec3 n = GetTriNormalizeByBary(isect.tri, isect.bary);
+
+        auto isectVts = model->GetTriVts(*isect.tri);
+        vec3 n = normalize(isect.bary[0] * isectVts[0]->normal
+            + isect.bary[1] * isectVts[1]->normal + isect.bary[2] * isectVts[2]->normal);
         BSDF b(n);
         b.Add(make_unique<LambertianReflection>(kd));
         // indirect

@@ -9,12 +9,11 @@ Spectrum Light::Sample_Li(const Sampler& s, const Interaction* isect, vec3& wi)
 {
     Spectrum Li(0.);
     auto& model = Loader::GetInstance();
+    auto& ts = model.GetTriangles();
     // sample light
     int lgtTriIdx = glm::linearRand(0, (int)tris.size() - 1);
-    auto tri = tris[lgtTriIdx];
-    auto a = tri->vts[0];
-    auto b = tri->vts[1];
-    auto c = tri->vts[2];
+    auto tri = ts[tris[lgtTriIdx]];
+    auto vts = model.GetTriVts(tri);
 
     float u = s.Get1D();
     float v = s.Get1D();
@@ -22,13 +21,15 @@ Spectrum Light::Sample_Li(const Sampler& s, const Interaction* isect, vec3& wi)
         u = 1 - u;
         v = 1 - v;
     }
-    vec3 samplePoint = (1 - u - v) * a->pos + u * b->pos + v * c->pos;
+    vec3 samplePoint = (1 - u - v) * vts[0]->pos + u * vts[1]->pos + v * vts[2]->pos;
     wi = samplePoint - isect->p;
     float dist2 = glm::max(dot(wi, wi), 0.0f);
     wi = normalize(wi);
-    vec3 nt = normalize(isect->bary[0] * isect->tri->vts[0]->normal + 
-        isect->bary[1] * isect->tri->vts[1]->normal + 
-        isect->bary[2] * isect->tri->vts[2]->normal);
+
+    auto isectVts = model.GetTriVts(*isect->tri);
+    vec3 nt = normalize(isect->bary[0] * isectVts[0]->normal
+        + isect->bary[1] * isectVts[1]->normal + isect->bary[2] * isectVts[2]->normal);
+
     Interaction isect2;
     if (isect2.Intersect(Ray{ isect->p + nt * ShadowEpsilon, wi }, model.GetTriangles(),
         model.GetCam().zfar, length(samplePoint - isect->p))) {
@@ -39,7 +40,7 @@ Spectrum Light::Sample_Li(const Sampler& s, const Interaction* isect, vec3& wi)
     vec3 kd = vec3(mat.pbrMetallicRoughness.baseColorFactor[0],
         mat.pbrMetallicRoughness.baseColorFactor[1], mat.pbrMetallicRoughness.baseColorFactor[2]);
 
-    vec3 nl = tri->normal;
+    vec3 nl = tri.normal;
     float cosl = glm::max(0.f, dot(nl, -wi));
     float cosp = glm::max(0.f, dot(nt, wi));
     float pdf = 1.0f / area;

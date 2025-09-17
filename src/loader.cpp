@@ -23,8 +23,6 @@ bool Loader::LoadFromFile(const string& file)
         cerr << "Failed to load GLB: " << file << endl;
         return false;
     }
-    triangles.reserve(10000);
-    vertices.reserve(10000);
     ParseNode();
     for (int i = 0; i < nodes.size(); i++) {
         const auto& n = model.nodes[i];
@@ -160,16 +158,20 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
     for (int i = 0; i < idx.size(); i+=3) {
         triangles.push_back(Triangle());
         auto& tri = triangles.back();
-        tri.vts[0] = &vertices[idx[i + 0] + vSize];
-        tri.vts[1] = &vertices[idx[i + 1] + vSize];
-        tri.vts[2] = &vertices[idx[i + 2] + vSize];
+        tri.vertIdx[0] = idx[i + 0] + vSize;
+        tri.vertIdx[1] = idx[i + 1] + vSize;
+        tri.vertIdx[2] = idx[i + 2] + vSize;
         tri.material = p.material;
-        tri.i = triangles.size();
-        tri.normal = normalize(cross(tri.vts[1]->pos - tri.vts[0]->pos, tri.vts[2]->pos - tri.vts[0]->pos));
+        tri.i = triangles.size() - 1;
+        auto& a = vertices[tri.vertIdx[0]].pos;
+        auto& b = vertices[tri.vertIdx[1]].pos;
+        auto& c = vertices[tri.vertIdx[2]].pos;
+
+        tri.normal = normalize(cross(b - a, c - a));
         if (isEmissive(p.material)) {
-            lgts.back().tris.push_back(&tri);
-            vec3 e1 = tri.vts[1]->pos - tri.vts[0]->pos;
-            vec3 e2 = tri.vts[2]->pos - tri.vts[0]->pos;
+            lgts.back().tris.push_back(tri.i);
+            vec3 e1 = b - a;
+            vec3 e2 = c - a;
             lgts.back().area += 0.5f * length(cross(e1, e2));    
         }
     }
@@ -468,10 +470,10 @@ void Loader::ProcessCamera(const Screen& scr)
     tMax = cam.zfar;
 }
 
-bool Interaction::Intersect(const Ray& r, const vector<Triangle>& tr8, float tMin, float tMax)
+bool Interaction::Intersect(const Ray& r, const vector<Triangle>& tri, float tMin, float tMax)
 {
     auto bvh = Loader::GetInstance().GetBvh();
-    auto& tris = Loader::GetInstance().GetTriangles();
+    auto& ts = Loader::GetInstance().GetTriangles();
     vector<uint64_t> tIdxs;
     bvh->TraverseBVH(tIdxs, r);
 
@@ -479,14 +481,11 @@ bool Interaction::Intersect(const Ray& r, const vector<Triangle>& tr8, float tMi
     float t, gu, gv;
     this->tMin = tMax;
     for (auto& i : tIdxs) {
-        auto& tri = tris[i];
-        const vec3& a = tri.vts[0]->pos;
-        const vec3& b = tri.vts[1]->pos;
-        const vec3& c = tri.vts[2]->pos;
-        if (alg::Moller_Trumbore(r.o, r.d, a, b, c, t, gu, gv) &&
+        auto vts = Loader::GetInstance().GetTriVts(i);
+        if (alg::Moller_Trumbore(r.o, r.d, vts[0]->pos, vts[1]->pos, vts[2]->pos, t, gu, gv) &&
             t > tMin && t < this->tMin && t < tMax) {
             this->tMin = t;
-            this->tri = &tri;
+            this->tri = &ts[i];
             this->bary = { 1 - gu - gv, gu, gv };
             this->p = r.o + t * r.d;
             hit = true;

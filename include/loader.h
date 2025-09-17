@@ -27,6 +27,12 @@ public:
     inline std::vector <ry::Vertex>& GetVertices() {
         return vertices;
     }
+    inline std::array<const ry::Vertex*, 3> GetTriVts(const ry::Triangle& t) const {
+        return { &vertices[t.vertIdx[0]], &vertices[t.vertIdx[1]], &vertices[t.vertIdx[2]] };
+    }
+    inline std::array<const ry::Vertex*, 3> GetTriVts(int triIdx) const {
+        return GetTriVts(triangles[triIdx]);
+    }
     inline tinygltf::Image GetTexTureImg() {
         return model.images.size() <= 0 ? tinygltf::Image() : model.images[0]; // TODO
     }
