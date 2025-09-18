@@ -268,7 +268,7 @@ void Loader::ParseMaterial(const tinygltf::Primitive& p, std::vector<ry::Vertex>
         return;
     }
     auto& mat = mats[mIdx];
-    mat.SetRawPtr(&model.materials[mIdx]);
+    mat.SetRawPtr(&model, &model.materials[mIdx]);
     // In most cases, the rendering is based on triangles, so there is no need to record the material index for each vertex.
 }
 
@@ -498,10 +498,10 @@ bool Interaction::Intersect(const Ray& r, float tMin, float tMax)
             this->tri = &i;
             this->bary = { 1 - gu - gv, gu, gv };
             this->p = r.o + t * r.d;
+            this->vts = vts;
             hit = true;
         }
     }
-
     if (hit) {
         auto vts = Loader::GetInstance().GetTriVts(*tri);
         normal = normalize(bary[0] * vts[0]->normal
@@ -535,7 +535,6 @@ bool Interaction::Intersect(const Ray& r, float tMin, float tMax)
         }
 #endif
     }
-
     if (hit) {
         auto vts = Loader::GetInstance().GetTriVts(*tri);
         normal = normalize(bary[0] * vts[0]->normal

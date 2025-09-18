@@ -193,22 +193,3 @@ Spectrum Tracer::Li(const Ray& r)
     }
     return Lo;
 }
-
-vec4 Tracer::SampleTexture(const vec3& bary, const vec2& uv0, const vec2& uv1, const vec2& uv2)
-{
-    vec2 uv = bary[0] * uv0 + bary[1] * uv1 + bary[2] * uv2;
-    const auto& image = model->GetTexTureImg();
-    const auto* pixel = image.image.data();
-    if (pixel == nullptr) {
-        return vec4(1.0, 0, 0, 1.0);
-    }
-    uint32_t x = uv[0] * (image.width - 1);
-    uint32_t y = uv[1] * (image.height - 1); // no need reverse
-    // int((1.0f - v) * (image.height - 1));
-    int idx = (y * image.width + x) * image.component;
-
-    return { pixel[idx + 0] / 255.0f,
-             pixel[idx + 1] / 255.0f,
-             pixel[idx + 2] / 255.0f,
-            (image.component == 4) ? pixel[idx + 3] / 255.0f : 1.0f };
-}

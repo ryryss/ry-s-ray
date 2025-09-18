@@ -117,11 +117,12 @@ struct Ray {
 };
 
 struct Interaction { // now just triangle
-    const Triangle* tri;
     vec3 bary; // barycentric
     vec3 p;
     float tMin;
     vec3 normal;
+    std::array<const Vertex*, 3> vts;
+    const Triangle* tri;
 #ifdef DEBUG
     std::vector<uint64_t> record;
 #endif
