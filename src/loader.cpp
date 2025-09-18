@@ -124,6 +124,7 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
     const auto idx = move(ParseVertIdx(p));
     std::vector<ry::Vertex> vert;
     ParsePosition(p, vert);
+    ParseMaterial(p, vert);
     ParseTexTure(p, vert);
     ParseNormal(p, vert);
     ParseVertColor(p, vert);
@@ -260,6 +261,17 @@ void Loader::ParseTexTure(const Primitive& p, vector<Vertex>& vert)
     }
 }
 
+void Loader::ParseMaterial(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert)
+{
+    int mIdx = p.material;
+    if (mIdx < 0) {
+        return;
+    }
+    auto& mat = mats[mIdx];
+    mat.SetRawPtr(&model.materials[mIdx]);
+    // In most cases, the rendering is based on triangles, so there is no need to record the material index for each vertex.
+}
+
 void Loader::ParseNormal(const Primitive& p, vector<Vertex>& vert)
 {
     auto it = p.attributes.find("NORMAL");
@@ -390,6 +402,7 @@ void Loader::ParseNode()
     }
 
     nodes.resize(model.nodes.size());
+    mats.resize(model.materials.size());
     for (const auto& s : model.scenes) {
         for (const auto& i : s.nodes) {
             const auto& n = model.nodes[i]; // root node
@@ -472,6 +485,33 @@ void Loader::ProcessCamera(const Screen& scr)
 
 bool Interaction::Intersect(const Ray& r, float tMin, float tMax)
 {
+    auto& ts = Loader::GetInstance().GetTriangles();
+
+    bool hit = false;
+    float t, gu, gv;
+    this->tMin = tMax;
+    for (auto& i : ts) {
+        auto vts = Loader::GetInstance().GetTriVts(i);
+        if (alg::Moller_Trumbore(r.o, r.d, vts[0]->pos, vts[1]->pos, vts[2]->pos, t, gu, gv) &&
+            t > tMin && t < this->tMin && t < tMax) {
+            this->tMin = t;
+            this->tri = &i;
+            this->bary = { 1 - gu - gv, gu, gv };
+            this->p = r.o + t * r.d;
+            hit = true;
+        }
+    }
+
+    if (hit) {
+        auto vts = Loader::GetInstance().GetTriVts(*tri);
+        normal = normalize(bary[0] * vts[0]->normal
+            + bary[1] * vts[1]->normal + bary[2] * vts[2]->normal);
+    }
+    return hit;
+}
+
+/*bool Interaction::Intersect(const Ray& r, float tMin, float tMax)
+{
     auto bvh = Loader::GetInstance().GetBvh();
     auto& ts = Loader::GetInstance().GetTriangles();
     vector<uint64_t> tIdxs;
@@ -495,5 +535,11 @@ bool Interaction::Intersect(const Ray& r, float tMin, float tMax)
         }
 #endif
     }
+
+    if (hit) {
+        auto vts = Loader::GetInstance().GetTriVts(*tri);
+        normal = normalize(bary[0] * vts[0]->normal
+            + bary[1] * vts[1]->normal + bary[2] * vts[2]->normal);
+    }
     return hit;
-}
+}*/

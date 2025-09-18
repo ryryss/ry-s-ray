@@ -1,5 +1,5 @@
-#ifndef DISPLAY
-#define DISPLAY
+#ifndef DISPLAY_H
+#define DISPLAY_H
 #include <GLFW/glfw3.h>
 #include "pub.h"
 

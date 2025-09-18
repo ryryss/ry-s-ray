@@ -1,5 +1,5 @@
-#ifndef	RAY_TRACE
-#define RAY_TRACE
+#ifndef	RAY_TRACE_H
+#define RAY_TRACE_H
 #include "pub.h"
 #include "loader.h"
 #include "BSDF.h"

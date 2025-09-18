@@ -14,7 +14,7 @@ vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f;
 
 Tracer::Tracer()
 {
-    maxTraces = 16;
+    maxTraces = 1;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 
@@ -167,24 +167,19 @@ Spectrum Tracer::Li(const Ray& r)
         }
         Lo += EstimateDirect(isect);
 
-        const Material& mat = model->GetMaterial(isect.tri->material);
-        Spectrum kd = (vec3(mat.pbrMetallicRoughness.baseColorFactor[0],
-            mat.pbrMetallicRoughness.baseColorFactor[1], mat.pbrMetallicRoughness.baseColorFactor[2]));
-
-        auto isectVts = model->GetTriVts(*isect.tri);
-        vec3 n = normalize(isect.bary[0] * isectVts[0]->normal
-            + isect.bary[1] * isectVts[1]->normal + isect.bary[2] * isectVts[2]->normal);
-        BSDF b(n);
-        b.Add(make_unique<LambertianReflection>(kd));
         // indirect
         Sampler s;
         float pdf;
         vec3 wi;
-        Spectrum f = b.Sample_f(-ray.d, &wi, s.Get2D(), &pdf, BSDF_ALL);
+        const Material& mat = model->GetMaterial(isect.tri->material);
+        std::unique_ptr<BSDF> b = mat.CreateBSDF(isect);
+        // get wi and f from bsdf
+        Spectrum f = b->Sample_f(-ray.d, &wi, s.Get2D(), &pdf, BSDF_ALL);
         if (pdf <= 0) {
             break;
         }
         // float cos = glm::max(dot(n, wi), 0.f);
+        vec3 n = isect.normal;
         beta *= f * abs(dot(wi, n)) / pdf;
         ray.d = wi;
         ray.o = isect.p + ShadowEpsilon * n;

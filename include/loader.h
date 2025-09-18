@@ -1,8 +1,9 @@
-#ifndef LOADER
-#define LOADER
+#ifndef LOADER_H
+#define LOADER_H
 #include "pub.h"
 #include "light.h"
 #include "algorithm.h"
+#include "material.h"
 #include "BVH.h"
 class Loader {
 public:
@@ -37,7 +38,7 @@ public:
         return model.images.size() <= 0 ? tinygltf::Image() : model.images[0]; // TODO
     }
     inline const ry::Material GetMaterial(int i) {
-        return model.materials.size() <= 0 ? ry::Material() : model.materials[i];
+        return mats.size() <= 0 ? ry::Material() : mats[i];
     }
     inline const std::shared_ptr<BVH> GetBvh() {
         return bvh;
@@ -56,6 +57,7 @@ private:
     std::vector<uint32_t> ParseVertIdx(const tinygltf::Primitive& p);
     void ParsePrimitive(const tinygltf::Primitive& p, const ry::mat4& m);
     void ParseTexTure(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);
+    void ParseMaterial(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);
     void ParseNormal(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);
     void ParseVertColor(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);
     void ParsePosition(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);
@@ -73,6 +75,7 @@ private:
     std::vector<uint32_t> roots;
     ry::Camera cam;
     std::vector <ry::Light> lgts;
+    std::vector <ry::Material> mats;
     std::vector<ry::Vertex> vertices;
     std::vector<ry::Triangle> triangles;
 

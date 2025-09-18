@@ -26,22 +26,17 @@ Spectrum Light::Sample_Li(const Sampler& s, const Interaction* isect, vec3& wi)
     float dist2 = glm::max(dot(wi, wi), 0.0f);
     wi = normalize(wi);
 
-    auto isectVts = model.GetTriVts(*isect->tri);
-    vec3 nt = normalize(isect->bary[0] * isectVts[0]->normal
-        + isect->bary[1] * isectVts[1]->normal + isect->bary[2] * isectVts[2]->normal);
-
-    Interaction isect2;
-    if (isect2.Intersect(Ray{ isect->p, wi }, model.GetCam().znear, length(samplePoint - isect->p) - ShadowEpsilon)) {
+    Interaction shadowTest;
+    if (shadowTest.Intersect(Ray{ isect->p, wi }, model.GetCam().znear, length(samplePoint - isect->p) - ShadowEpsilon)) {
         return Spectrum(0.); // if hit any obeject (include emissive) = shadow
     }
 
     const Material& mat = model.GetMaterial(isect->tri->material);
-    vec3 kd = vec3(mat.pbrMetallicRoughness.baseColorFactor[0],
-        mat.pbrMetallicRoughness.baseColorFactor[1], mat.pbrMetallicRoughness.baseColorFactor[2]);
+    vec3 kd = mat.GetAlbedo(*isect).c;
 
     vec3 nl = tri.normal;
     float cosl = glm::max(0.f, dot(nl, -wi));
-    float cosp = glm::max(0.f, dot(nt, wi));
+    float cosp = glm::max(0.f, dot(isect->normal, wi));
     float pdf = 1.0f / area;
     vec3 Le = I.c * emissiveStrength;// / (Pi * lgt.area);
     vec3 f = kd / Pi;

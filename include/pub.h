@@ -1,5 +1,5 @@
-#ifndef PUB
-#define PUB
+#ifndef PUB_H
+#define PUB_H
 #define GLM_ENABLE_EXPERIMENTAL
 #include <iostream>
 #include <fstream>
@@ -54,6 +54,7 @@ struct Vertex {
     vec4 color = vec4(1.0);
     vec3 normal;
     vec2 uv;
+    // int mat;
     int i;
 };
 
@@ -94,8 +95,6 @@ struct Camera : public Node {
     Camera(const Node& other) : Node(other) {};
 };
 
-using Material = tinygltf::Material;
-
 inline void PrintVec(vec3 v)
 {
     for (int i = 0; i < 3; i++) {
@@ -122,6 +121,7 @@ struct Interaction { // now just triangle
     vec3 bary; // barycentric
     vec3 p;
     float tMin;
+    vec3 normal;
 #ifdef DEBUG
     std::vector<uint64_t> record;
 #endif

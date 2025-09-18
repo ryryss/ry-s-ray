@@ -1,5 +1,5 @@
-#ifndef	TASK
-#define TASK
+#ifndef	TASK_H
+#define TASK_H
 #include "pub.h"
 #include <thread>
 #include <queue>
