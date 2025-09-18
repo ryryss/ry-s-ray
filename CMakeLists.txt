@@ -53,15 +53,18 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${HEADS})
 
 # after build for vs
-set(EXE_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
-set(GLFW_DLL "${GLFW_BUILD_DIR}/src/Release/glfw3.dll")
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${GLFW_DLL}"
-        "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
-    COMMENT "Copying glfw3.dll to output directory"
-)
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
+if(CMAKE_SYSTEM_NAME MATCHES "Windows")
+    set(EXE_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+    set(GLFW_DLL "${GLFW_BUILD_DIR}/src/Release/glfw3.dll")
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${GLFW_DLL}"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+        COMMENT "Copying glfw3.dll to output directory"
+    )
+    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+endif()
 
 # print all variable for debug
 if(CMAKE_DEBUG)
@@ -71,3 +74,7 @@ if(CMAKE_DEBUG)
         message(STATUS "${_variableNames}=${${_variableNames}}")
     endforeach()
 endif()
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    $<$<CONFIG:Debug>:DEBUG>
+)

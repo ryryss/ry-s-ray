@@ -31,8 +31,7 @@ Spectrum Light::Sample_Li(const Sampler& s, const Interaction* isect, vec3& wi)
         + isect->bary[1] * isectVts[1]->normal + isect->bary[2] * isectVts[2]->normal);
 
     Interaction isect2;
-    if (isect2.Intersect(Ray{ isect->p + nt * ShadowEpsilon, wi }, model.GetTriangles(),
-        model.GetCam().zfar, length(samplePoint - isect->p))) {
+    if (isect2.Intersect(Ray{ isect->p, wi }, model.GetCam().znear, length(samplePoint - isect->p) - ShadowEpsilon)) {
         return Spectrum(0.); // if hit any obeject (include emissive) = shadow
     }
 

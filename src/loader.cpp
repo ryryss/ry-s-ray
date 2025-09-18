@@ -470,13 +470,12 @@ void Loader::ProcessCamera(const Screen& scr)
     tMax = cam.zfar;
 }
 
-bool Interaction::Intersect(const Ray& r, const vector<Triangle>& tri, float tMin, float tMax)
+bool Interaction::Intersect(const Ray& r, float tMin, float tMax)
 {
     auto bvh = Loader::GetInstance().GetBvh();
     auto& ts = Loader::GetInstance().GetTriangles();
     vector<uint64_t> tIdxs;
     bvh->TraverseBVH(tIdxs, r);
-
     bool hit = false;
     float t, gu, gv;
     this->tMin = tMax;
@@ -489,7 +488,12 @@ bool Interaction::Intersect(const Ray& r, const vector<Triangle>& tri, float tMi
             this->bary = { 1 - gu - gv, gu, gv };
             this->p = r.o + t * r.d;
             hit = true;
+        } 
+#ifdef DEBUG
+        else {
+            record.push_back(i);
         }
+#endif
     }
     return hit;
 }

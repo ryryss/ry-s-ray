@@ -27,5 +27,10 @@ private:
 	uint16_t maxTraces = 16; // spp
 	uint16_t currentTraces = 0;
 	Loader* model; // or scene
+
+#ifdef DEBUG
+	uint16_t curX;
+	uint16_t curY;
+#endif
 };
 #endif

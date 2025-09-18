@@ -2,6 +2,8 @@
 #include "algorithm.h"
 #include "task.h"
 #include "light.h"
+#include "log.h"
+
 using namespace std;
 using namespace ry;
 using namespace glm;
@@ -18,11 +20,12 @@ Tracer::Tracer()
 
 void Tracer::Excute()
 {
-    sppBuffer.clear();
     for (int i = 1; i <= maxTraces; i++) {
+        cout << "start " << currentTraces << "-th rayray" << endl;
         currentTraces = i;
         Parallel();
     }
+    sppBuffer.clear();
 }
 
 void Tracer::SetInOutPut(const ry::Screen& s, Loader* m, ry::vec4* p)
@@ -46,13 +49,21 @@ void Tracer::SetInOutPut(const ry::Screen& s, Loader* m, ry::vec4* p)
 void Tracer::Parallel()
 {
     auto& t = Task::GetInstance();
-    auto w_cnt = t.WokerCnt();
-    for (auto i = 0; i < w_cnt; i ++) {
-        t.Add([this, i, &t, h = scr.h / w_cnt]() {
+#ifdef DEBUG
+    auto wCnt = 1;
+#else
+    auto wCnt = t.WokerCnt();
+#endif
+    for (auto i = 0; i < wCnt; i ++) {
+        t.Add([this, i, &t, h = scr.h / wCnt]() {
             // use the number of pixels on the y-axis to parallel cal
             for (uint16_t y = i * h; y < (i + 1) * h; y++) {
                 for (uint16_t x = 0; x < scr.w; x++) {
                     uint32_t num = y * scr.w + x;
+#ifdef DEBUG
+                    curX = x;
+                    curY = y;
+#endif
                     sppBuffer[num] += vec4(RayCompute(x, y).c, 1.0);
                     pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
                 }
@@ -61,8 +72,8 @@ void Tracer::Parallel()
     }
     t.AsynExcute();
 
-    if (auto mod = scr.h % w_cnt; mod) {
-        for (uint16_t y = scr.h / w_cnt * w_cnt; y < scr.h; y++) {
+    if (auto mod = scr.h % wCnt; mod) {
+        for (uint16_t y = scr.h / wCnt * wCnt; y < scr.h; y++) {
             for (uint16_t x = 0; x < scr.w; x++) {
                 uint32_t num = y * scr.w + x;
                 sppBuffer[num] += vec4(RayCompute(x, y).c, 1.0);
@@ -134,8 +145,7 @@ Spectrum Tracer::Li(const Ray& r)
     for (int bounce = 0; bounce < 3/*bounces*/; bounce++) {
         Spectrum L(0.);
         // Lo += beta * Le;
-        if (!isect.Intersect(ray, model->GetTriangles(),
-            model->GetCam().znear, model->GetCam().zfar)) {
+        if (!isect.Intersect(ray, model->GetCam().znear, model->GetCam().zfar)) {
             Lo += beta * vec3(A);
             break;
         } else if (model->isEmissive(isect.tri->material)) {
@@ -143,6 +153,15 @@ Spectrum Tracer::Li(const Ray& r)
             Lo += beta * lgt.I.c * lgt.emissiveStrength;
             break;
         }
+#ifdef DEBUG
+        /*if (curY >= 300 && curX >= 255 && curX <= 270) {
+            Log << "x = " << curX << " y = " << curY << "hit list = ";
+            for (auto i : isect.record) {
+                Log << i << " ";
+            }
+            Log << endl;
+        }*/
+#endif
         if (bounce == 0) {
             // process specular 
         }
