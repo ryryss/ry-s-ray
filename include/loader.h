@@ -56,7 +56,7 @@ private:
 
     std::vector<uint32_t> ParseVertIdx(const tinygltf::Primitive& p);
     void ParsePrimitive(const tinygltf::Primitive& p, const ry::mat4& m);
-    void ParseTexTure(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);
+    void ParseTexTureCoord(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);
     void ParseMaterial(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);
     void ParseNormal(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);
     void ParseVertColor(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);

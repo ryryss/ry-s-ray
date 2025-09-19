@@ -39,10 +39,6 @@ vec4 ry::Material::GetTexture(const Interaction& si) const
     // int((1.0f - v) * (image.height - 1));
     int idx = (y * image->width + x) * image->component;
     auto pixel = image->image.data();
-
-    // int midx = 
-    // if (x * y )
-
     return { pixel[idx + 0] / 255.0f, pixel[idx + 1] / 255.0f,
              pixel[idx + 2] / 255.0f, (image->component == 4) ? pixel[idx + 3] / 255.0f : 1.0f };
 }

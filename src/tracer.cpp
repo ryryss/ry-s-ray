@@ -116,20 +116,10 @@ Spectrum Tracer::RayCompute(uint32_t x, uint32_t y)
     return Lo;
 }
 
-vec3 SampleTriangle(const vec3& a, const vec3& b, const vec3& c){
-    Sampler sampler;
-    float u = sampler.Get1D();
-    float v = sampler.Get1D();
-    if (u + v > 1.0f) {
-        u = 1 - u;
-        v = 1 - v;
-    }
-    return (1 - u - v) * a + u * b + v * c;
-}
-
 Spectrum Tracer::EstimateDirect(const Interaction& isect)
 {
-    Spectrum Lo(0.);
+    // TODO: need random choose a light
+    // TODO: MIS
     auto& lgt = model->GetLgt();
     Sampler s;
     vec3 w;
@@ -153,19 +143,11 @@ Spectrum Tracer::Li(const Ray& r)
             Lo += beta * lgt.I.c * lgt.emissiveStrength;
             break;
         }
-#ifdef DEBUG
-        /*if (curY >= 300 && curX >= 255 && curX <= 270) {
-            Log << "x = " << curX << " y = " << curY << "hit list = ";
-            for (auto i : isect.record) {
-                Log << i << " ";
-            }
-            Log << endl;
-        }*/
-#endif
+
         if (bounce == 0) {
             // process specular 
         }
-        Lo += EstimateDirect(isect);
+        Lo += beta * EstimateDirect(isect);
 
         // indirect
         Sampler s;

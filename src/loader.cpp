@@ -125,7 +125,7 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
     std::vector<ry::Vertex> vert;
     ParsePosition(p, vert);
     ParseMaterial(p, vert);
-    ParseTexTure(p, vert);
+    ParseTexTureCoord(p, vert);
     ParseNormal(p, vert);
     ParseVertColor(p, vert);
 
@@ -211,10 +211,10 @@ vector<uint32_t> Loader::ParseVertIdx(const Primitive& p)
     return res;
 }
 
-void Loader::ParseTexTure(const Primitive& p, vector<Vertex>& vert)
+void Loader::ParseTexTureCoord(const Primitive& p, vector<Vertex>& vert)
 {
     // https://github.khronos.org/glTF-Tutorials/gltfTutorial/gltfTutorial_013_SimpleTexture.html
-    // TODO: mult textures sup
+    // TODO: mult texturescoord sup
     auto it = p.attributes.find("TEXCOORD_0");
     if (it == p.attributes.end()) {
         cout << "no texture" << endl;
@@ -485,37 +485,10 @@ void Loader::ProcessCamera(const Screen& scr)
 
 bool Interaction::Intersect(const Ray& r, float tMin, float tMax)
 {
-    auto& ts = Loader::GetInstance().GetTriangles();
-
-    bool hit = false;
-    float t, gu, gv;
-    this->tMin = tMax;
-    for (auto& i : ts) {
-        auto vts = Loader::GetInstance().GetTriVts(i);
-        if (alg::Moller_Trumbore(r.o, r.d, vts[0]->pos, vts[1]->pos, vts[2]->pos, t, gu, gv) &&
-            t > tMin && t < this->tMin && t < tMax) {
-            this->tMin = t;
-            this->tri = &i;
-            this->bary = { 1 - gu - gv, gu, gv };
-            this->p = r.o + t * r.d;
-            this->vts = vts;
-            hit = true;
-        }
-    }
-    if (hit) {
-        auto vts = Loader::GetInstance().GetTriVts(*tri);
-        normal = normalize(bary[0] * vts[0]->normal
-            + bary[1] * vts[1]->normal + bary[2] * vts[2]->normal);
-    }
-    return hit;
-}
-
-/*bool Interaction::Intersect(const Ray& r, float tMin, float tMax)
-{
-    auto bvh = Loader::GetInstance().GetBvh();
-    auto& ts = Loader::GetInstance().GetTriangles();
     vector<uint64_t> tIdxs;
-    bvh->TraverseBVH(tIdxs, r);
+    auto bvh = Loader::GetInstance().GetBvh();
+    bvh->TraverseBVH(tIdxs, r, bvh->root);
+    auto& ts = Loader::GetInstance().GetTriangles();
     bool hit = false;
     float t, gu, gv;
     this->tMin = tMax;
@@ -527,6 +500,7 @@ bool Interaction::Intersect(const Ray& r, float tMin, float tMax)
             this->tri = &ts[i];
             this->bary = { 1 - gu - gv, gu, gv };
             this->p = r.o + t * r.d;
+            this->vts = vts;
             hit = true;
         } 
 #ifdef DEBUG
@@ -535,10 +509,18 @@ bool Interaction::Intersect(const Ray& r, float tMin, float tMax)
         }
 #endif
     }
+#ifdef DEBUG
+     cout << "no hit list = ";
+     for (auto i : record) {
+         cout << i << " ";
+    }
+    cout << endl;
+#endif
     if (hit) {
         auto vts = Loader::GetInstance().GetTriVts(*tri);
         normal = normalize(bary[0] * vts[0]->normal
             + bary[1] * vts[1]->normal + bary[2] * vts[2]->normal);
     }
+
     return hit;
-}*/
+}

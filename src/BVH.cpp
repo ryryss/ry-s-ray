@@ -2,7 +2,7 @@
 using namespace std;
 using namespace ry;
 
-BVH::BVH(uint8_t geomCnt, int m) : maxLeafSize(m) {
+BVH::BVH(uint64_t geomCnt, int m) : maxLeafSize(m) {
     std::vector<uint64_t> indices(geomCnt);
     std::iota(indices.begin(), indices.end(), 0);
     root = BuildNode(indices);
@@ -32,12 +32,12 @@ std::shared_ptr<BVHNode> BVH::BuildNode(vector<uint64_t>& indices)
     }
     // chose a axis
     vec3 diag = node->box.max - node->box.min;
-    int axis = 0;
+    uint64_t axis = 0;
     if (diag.y > diag.x) axis = 1;
     if (diag.z > diag[axis]) axis = 2;
     // use triangle centroid to sort
     std::sort(indices.begin(), indices.end(),
-        [&](int a, int b) {
+        [&](uint64_t a, uint64_t b) {
             auto vtsa = Loader::GetInstance().GetTriVts(a);
             auto vtsb = Loader::GetInstance().GetTriVts(b);
             vec3 ca = (vtsa[0]->pos + vtsa[1]->pos + vtsa[2]->pos) / 3.0f;
@@ -57,7 +57,7 @@ std::shared_ptr<BVHNode> BVH::BuildNode(vector<uint64_t>& indices)
 void BVH::TraverseBVH(vector<uint64_t>& res, const Ray& ray, shared_ptr<BVHNode> node)
 {
     if (!node) {
-        node = root;
+        return;
     }
 
     if (node->isLeaf()) {
@@ -65,7 +65,8 @@ void BVH::TraverseBVH(vector<uint64_t>& res, const Ray& ray, shared_ptr<BVHNode>
         return;
     }
 
-    if (!node->box.Hit(ray, 0.0f, std::numeric_limits<float>::infinity())) {
+
+    if (!node->box.Hit(ray, 0, floatMax)) {
         return;
     }
 

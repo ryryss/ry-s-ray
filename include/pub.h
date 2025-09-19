@@ -22,6 +22,8 @@ static float PiOver2 = 1.57079632679489661923;
 static float PiOver4 = 0.78539816339744830961;
 static float Sqrt2 = 1.41421356237309504880;
 
+constexpr float floatMax = std::numeric_limits<float>::infinity();
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -39,13 +41,29 @@ using vec4 = glm::vec4;
 using mat4 = glm::mat4;
 
 class Sampler {
+private:
+    mutable std::mt19937 generator;
+    mutable std::uniform_real_distribution<float> distF;
 public:
-    Sampler() {}
-    ry::vec2 Get2D() const {
-        return ry::vec2(glm::linearRand(0.0f, 1.0f), glm::linearRand(0.0f, 1.0f));
+    Sampler() : distF(0.0f, 1.0f) {
+        std::random_device rd;
+        generator.seed(rd());
     }
-    float Get1D() const {
-        return glm::linearRand(0.0f, 1.0f);
+
+    inline ry::vec2 Get2D() const {
+        return ry::vec2(Get1D(), Get1D());
+    }
+
+    inline float Get1D() const {
+        return distF(generator);
+    }
+
+    inline int GetIntInRange(int min, int max) const {
+        if (min > max) {
+            std::swap(min, max);
+        }
+        std::uniform_int_distribution<int> disI(min, max);
+        return disI(generator);
     }
 };
 

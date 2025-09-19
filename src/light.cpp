@@ -11,7 +11,7 @@ Spectrum Light::Sample_Li(const Sampler& s, const Interaction* isect, vec3& wi)
     auto& model = Loader::GetInstance();
     auto& ts = model.GetTriangles();
     // sample light
-    int lgtTriIdx = glm::linearRand(0, (int)tris.size() - 1);
+    int lgtTriIdx = s.GetIntInRange(0, tris.size() - 1);
     auto tri = ts[tris[lgtTriIdx]];
     auto vts = model.GetTriVts(tri);
 
