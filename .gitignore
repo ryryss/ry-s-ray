@@ -1,0 +1,4 @@
+/build
+/_deps/tinygltf
+/_deps/glm
+/_deps/glfw

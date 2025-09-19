@@ -1,12 +1,14 @@
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "loder.h"
-
+#include "loader.h"
+#include "algorithm.h"
+#include "BVH.h"
 using namespace std;
 using namespace tinygltf;
 using namespace ry;
 using namespace glm;
+using namespace alg;
 
 bool Loader::LoadFromFile(const string& file)
 {
@@ -21,7 +23,6 @@ bool Loader::LoadFromFile(const string& file)
         cerr << "Failed to load GLB: " << file << endl;
         return false;
     }
-
     ParseNode();
     for (int i = 0; i < nodes.size(); i++) {
         const auto& n = model.nodes[i];
@@ -43,6 +44,7 @@ bool Loader::LoadFromFile(const string& file)
     if (!lgts.size()) {
         ParseLgt(-1);
     }
+    bvh = make_shared<BVH>(triangles.size());
     return true;
 }
 
@@ -122,14 +124,12 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
     const auto idx = move(ParseVertIdx(p));
     std::vector<ry::Vertex> vert;
     ParsePosition(p, vert);
-    ParseTexTure(p, vert);
+    ParseMaterial(p, vert);
+    ParseTexTureCoord(p, vert);
     ParseNormal(p, vert);
     ParseVertColor(p, vert);
 
     int vSize = vertices.size();
-    int tSize = triangles.size();
-    triangles.resize(tSize + idx.size() / 3);
-
     // apply trans
     mat3 n_m = transpose(inverse(mat3(m)));
     for (auto i = 0; i < vert.size(); i++) {
@@ -137,7 +137,7 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
         vert[i].normal = normalize(n_m * vert[i].normal);
         vert[i].i = i + vSize;
     }
-
+    vertices.insert(vertices.end(), vert.begin(), vert.end());
     if (isEmissive(p.material)) {
         // TODO emissive texture
         auto& m = model.materials[p.material];
@@ -157,21 +157,25 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
 
     // collect tris
     for (int i = 0; i < idx.size(); i+=3) {
-        auto& tri = triangles[i / 3 + tSize];
-        tri.idx[0] = idx[i] + vSize;
-        tri.idx[1] = idx[i + 1] + vSize;
-        tri.idx[2] = idx[i + 2] + vSize;
+        triangles.push_back(Triangle());
+        auto& tri = triangles.back();
+        tri.vertIdx[0] = idx[i + 0] + vSize;
+        tri.vertIdx[1] = idx[i + 1] + vSize;
+        tri.vertIdx[2] = idx[i + 2] + vSize;
         tri.material = p.material;
-        tri.i = i / 3 + tSize;
+        tri.i = triangles.size() - 1;
+        auto& a = vertices[tri.vertIdx[0]].pos;
+        auto& b = vertices[tri.vertIdx[1]].pos;
+        auto& c = vertices[tri.vertIdx[2]].pos;
 
+        tri.normal = normalize(cross(b - a, c - a));
         if (isEmissive(p.material)) {
-            lgts.back().tris.push_back(tri);
-            vec3 e1 = vert[idx[i + 1]].pos - vert[idx[i]].pos;
-            vec3 e2 = vert[idx[i + 2]].pos - vert[idx[i]].pos;
+            lgts.back().tris.push_back(tri.i);
+            vec3 e1 = b - a;
+            vec3 e2 = c - a;
             lgts.back().area += 0.5f * length(cross(e1, e2));    
         }
     }
-    vertices.insert(vertices.end(), vert.begin(), vert.end());
     cout << "parse result : vertices size = "  << vert.size()
         << " triangles size = " << idx.size() / 3 << endl;
 }
@@ -207,10 +211,10 @@ vector<uint32_t> Loader::ParseVertIdx(const Primitive& p)
     return res;
 }
 
-void Loader::ParseTexTure(const Primitive& p, vector<Vertex>& vert)
+void Loader::ParseTexTureCoord(const Primitive& p, vector<Vertex>& vert)
 {
     // https://github.khronos.org/glTF-Tutorials/gltfTutorial/gltfTutorial_013_SimpleTexture.html
-    // TODO: mult textures sup
+    // TODO: mult texturescoord sup
     auto it = p.attributes.find("TEXCOORD_0");
     if (it == p.attributes.end()) {
         cout << "no texture" << endl;
@@ -255,6 +259,17 @@ void Loader::ParseTexTure(const Primitive& p, vector<Vertex>& vert)
             vert[i].color.a = (image.component == 4) ? pixels[idx + 3] / 255.0f : 1.0f;
         }
     }
+}
+
+void Loader::ParseMaterial(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert)
+{
+    int mIdx = p.material;
+    if (mIdx < 0) {
+        return;
+    }
+    auto& mat = mats[mIdx];
+    mat.SetRawPtr(&model, &model.materials[mIdx]);
+    // In most cases, the rendering is based on triangles, so there is no need to record the material index for each vertex.
 }
 
 void Loader::ParseNormal(const Primitive& p, vector<Vertex>& vert)
@@ -387,6 +402,7 @@ void Loader::ParseNode()
     }
 
     nodes.resize(model.nodes.size());
+    mats.resize(model.materials.size());
     for (const auto& s : model.scenes) {
         for (const auto& i : s.nodes) {
             const auto& n = model.nodes[i]; // root node
@@ -428,7 +444,7 @@ void Loader::ParseChildNode(int num)
     }
 }
 
- mat4 Loader::GetNodeMat(int num)
+mat4 Loader::GetNodeMat(int num)
 {
      mat4 t = mat4(1.0f);
      if (num < 0) {
@@ -455,20 +471,56 @@ void Loader::ParseChildNode(int num)
     return t;
 }
 
-vec3 Loader::GetTriNormalizeByBary(int i, const vec3& bary)
+void Loader::ProcessCamera(const Screen& scr)
 {
-    auto tri = triangles[i];
-    const auto& a = vertices[tri.idx[0]];
-    const auto& b = vertices[tri.idx[1]];
-    const auto& c = vertices[tri.idx[2]];
-    return normalize(bary[0] * a.normal + bary[1] * b.normal + bary[2] * c.normal);
+    if (cam.type == "perspective") {
+        cam.ymag = cam.znear * tan(cam.yfov / 2);
+        cam.xmag = cam.ymag * cam.aspectRatio;
+    } else {
+        cam.xmag = cam.ymag * scr.w / scr.h;
+    }
+    tMin = cam.znear;
+    tMax = cam.zfar;
 }
 
-vec3 Loader::GetTriNormalize(int i)
+bool Interaction::Intersect(const Ray& r, float tMin, float tMax)
 {
-    auto tri = triangles[i];
-    const auto& a = vertices[tri.idx[0]].pos;
-    const auto& b = vertices[tri.idx[1]].pos;
-    const auto& c = vertices[tri.idx[2]].pos;
-    return normalize(cross(b - a, c -a));
+    vector<uint64_t> tIdxs;
+    auto bvh = Loader::GetInstance().GetBvh();
+    bvh->TraverseBVH(tIdxs, r, bvh->root);
+    auto& ts = Loader::GetInstance().GetTriangles();
+    bool hit = false;
+    float t, gu, gv;
+    this->tMin = tMax;
+    for (auto& i : tIdxs) {
+        auto vts = Loader::GetInstance().GetTriVts(i);
+        if (alg::Moller_Trumbore(r.o, r.d, vts[0]->pos, vts[1]->pos, vts[2]->pos, t, gu, gv) &&
+            t > tMin && t < this->tMin && t < tMax) {
+            this->tMin = t;
+            this->tri = &ts[i];
+            this->bary = { 1 - gu - gv, gu, gv };
+            this->p = r.o + t * r.d;
+            this->vts = vts;
+            hit = true;
+        } 
+#ifdef DEBUG
+        else {
+            record.push_back(i);
+        }
+#endif
+    }
+#ifdef DEBUG
+     cout << "no hit list = ";
+     for (auto i : record) {
+         cout << i << " ";
+    }
+    cout << endl;
+#endif
+    if (hit) {
+        auto vts = Loader::GetInstance().GetTriVts(*tri);
+        normal = normalize(bary[0] * vts[0]->normal
+            + bary[1] * vts[1]->normal + bary[2] * vts[2]->normal);
+    }
+
+    return hit;
 }

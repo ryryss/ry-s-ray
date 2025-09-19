@@ -1,5 +1,5 @@
-#ifndef	TASK
-#define TASK
+#ifndef	TASK_H
+#define TASK_H
 #include "pub.h"
 #include <thread>
 #include <queue>
@@ -54,5 +54,7 @@ private:
     std::condition_variable c;
     std::atomic<bool> stop;
     std::atomic<uint8_t> t_cnt;
+
+    size_t cores;
 };
 #endif

@@ -1,5 +1,5 @@
-#ifndef DISPLAY
-#define DISPLAY
+#ifndef DISPLAY_H
+#define DISPLAY_H
 #include <GLFW/glfw3.h>
 #include "pub.h"
 
@@ -15,13 +15,16 @@ public:
         static Display instance(width, height, title);
         return instance;
     }
+    std::vector<ry::vec4>& GetPixels() {
+        return pixels;
+    }
 
-    void UpdateFrame(const void* pixels) {
+    void UpdateFrame() {
         ResizeTexture(width, height);
 
         glBindTexture(GL_TEXTURE_2D, texture);
         // glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, pixels);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, pixels.data());
         // set x y start from the bottom left 
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -58,6 +61,7 @@ private:
             auto* self = static_cast<Display*>(glfwGetWindowUserPointer(win));
             self->width = w;
             self->height = h;
+            self->pixels.resize(w * h);
         });
 
         glGenTextures(1, &texture);
@@ -72,9 +76,10 @@ private:
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_FLOAT, nullptr);
+            pixels.resize(w * h);
         }
     }
-
+    std::vector<ry::vec4> pixels;
     GLFWwindow* window;
     GLuint texture;
     uint16_t width;

@@ -35,10 +35,10 @@ public:
         c *= c2.c;
         return *this;
     }
-    RGBSpectrum& operator+(const RGBSpectrum& c2) const {
+    RGBSpectrum operator+(const RGBSpectrum& c2) const {
         return RGBSpectrum(c + c2.c);
     }
-    RGBSpectrum& operator/(float c2) const {
+    RGBSpectrum operator/(float c2) const {
         return RGBSpectrum(c / c2);
     }
     ry::vec3 c;

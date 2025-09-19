@@ -1,5 +1,5 @@
-#ifndef PUB
-#define PUB
+#ifndef PUB_H
+#define PUB_H
 #define GLM_ENABLE_EXPERIMENTAL
 #include <iostream>
 #include <fstream>
@@ -11,7 +11,9 @@
 #include <array>
 #include <chrono>
 #include <random>
-static float ShadowEpsilon = 0.0001f;
+#include <numeric>
+#include <thread>
+static float ShadowEpsilon = 1e-5;
 static float Pi = 3.14159265358979323846;
 static float InvPi = 0.31830988618379067154;
 static float Inv2Pi = 0.15915494309189533577;
@@ -19,6 +21,8 @@ static float Inv4Pi = 0.07957747154594766788;
 static float PiOver2 = 1.57079632679489661923;
 static float PiOver4 = 0.78539816339744830961;
 static float Sqrt2 = 1.41421356237309504880;
+
+constexpr float floatMax = std::numeric_limits<float>::infinity();
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -36,19 +40,47 @@ using vec2 = glm::vec2;
 using vec4 = glm::vec4;
 using mat4 = glm::mat4;
 
+class Sampler {
+private:
+    mutable std::mt19937 generator;
+    mutable std::uniform_real_distribution<float> distF;
+public:
+    Sampler() : distF(0.0f, 1.0f) {
+        std::random_device rd;
+        generator.seed(rd());
+    }
+
+    inline ry::vec2 Get2D() const {
+        return ry::vec2(Get1D(), Get1D());
+    }
+
+    inline float Get1D() const {
+        return distF(generator);
+    }
+
+    inline int GetIntInRange(int min, int max) const {
+        if (min > max) {
+            std::swap(min, max);
+        }
+        std::uniform_int_distribution<int> disI(min, max);
+        return disI(generator);
+    }
+};
+
 struct Vertex {
     vec3 pos;
     vec4 color = vec4(1.0);
     vec3 normal;
     vec2 uv;
+    // int mat;
     int i;
 };
 
 struct Triangle {
     vec4 color;
-    uint32_t idx[3]; // use for  model vertices
-    vec3 bary; // barycentric
     int material;
+    uint32_t vertIdx[3];
+    vec3 normal;
     int i;
 };
 
@@ -81,13 +113,6 @@ struct Camera : public Node {
     Camera(const Node& other) : Node(other) {};
 };
 
-using Material = tinygltf::Material;
-
-struct Screen {
-    uint16_t w = 0;
-    uint16_t h = 0;
-};
-
 inline void PrintVec(vec3 v)
 {
     for (int i = 0; i < 3; i++) {
@@ -95,10 +120,37 @@ inline void PrintVec(vec3 v)
             std::cout << 0 << " ";
         } else {
             std::cout << v[i] << " ";
-        }   
+        }
     }
     std::cout << std::endl;
 }
+struct Ray {
+    vec3 o;
+    vec3 d;
+    vec3 dInv;
+    int sign[3];
+    Ray(const vec3& origin, const vec3& dir) : o(origin), d(dir) {
+        dInv = vec3(1.0f / dir.x, 1.0f / dir.y, 1.0f / dir.z);
+    }
+};
+
+struct Interaction { // now just triangle
+    vec3 bary; // barycentric
+    vec3 p;
+    float tMin;
+    vec3 normal;
+    std::array<const Vertex*, 3> vts;
+    const Triangle* tri;
+#ifdef DEBUG
+    std::vector<uint64_t> record;
+#endif
+    bool Intersect(const Ray& r, float tMin, float tMax);
+};
+
+struct Screen {
+    uint16_t w = 0;
+    uint16_t h = 0;
+};
 
 inline void PrintMat4(mat4 m)
 {
@@ -116,6 +168,5 @@ inline void PrintMat4(mat4 m)
     // be care glm is col major
     std::cout << glm::to_string(m) << std::endl;
 }
-
 }
 #endif // !PUB

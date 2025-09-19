@@ -1,9 +1,20 @@
-#ifndef LODER
-#define LODER
+#ifndef LOADER_H
+#define LOADER_H
 #include "pub.h"
 #include "light.h"
+#include "algorithm.h"
+#include "material.h"
+#include "BVH.h"
 class Loader {
 public:
+    Loader(const Loader&) = delete;
+    Loader& operator=(const Loader&) = delete;
+    static Loader& GetInstance() {
+        static Loader instance;
+        return instance;
+    }
+    void ProcessCamera(const ry::Screen& scr);
+
     bool LoadFromFile(const std::string& filepath);
     inline ry::Camera& GetCam() {
         return cam;
@@ -17,12 +28,22 @@ public:
     inline std::vector <ry::Vertex>& GetVertices() {
         return vertices;
     }
+    inline std::array<const ry::Vertex*, 3> GetTriVts(const ry::Triangle& t) const {
+        return { &vertices[t.vertIdx[0]], &vertices[t.vertIdx[1]], &vertices[t.vertIdx[2]] };
+    }
+    inline std::array<const ry::Vertex*, 3> GetTriVts(int triIdx) const {
+        return GetTriVts(triangles[triIdx]);
+    }
     inline tinygltf::Image GetTexTureImg() {
         return model.images.size() <= 0 ? tinygltf::Image() : model.images[0]; // TODO
     }
     inline const ry::Material GetMaterial(int i) {
-        return model.materials.size() <= 0 ? ry::Material() : model.materials[i];
+        return mats.size() <= 0 ? ry::Material() : mats[i];
     }
+    inline const std::shared_ptr<BVH> GetBvh() {
+        return bvh;
+    }
+
     inline bool isEmissive(int i) {
         return (!(model.materials.size() <= 0) &&
                 (model.materials[i].emissiveFactor[0] > 0.0f ||
@@ -30,13 +51,13 @@ public:
                  model.materials[i].emissiveFactor[2] > 0.0f));
     }
 
-    ry::vec3 GetTriNormalizeByBary(int i, const ry::vec3& bary);
-    ry::vec3 GetTriNormalize(int i);
-
 private:
+    Loader() {}
+
     std::vector<uint32_t> ParseVertIdx(const tinygltf::Primitive& p);
     void ParsePrimitive(const tinygltf::Primitive& p, const ry::mat4& m);
-    void ParseTexTure(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);
+    void ParseTexTureCoord(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);
+    void ParseMaterial(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);
     void ParseNormal(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);
     void ParseVertColor(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);
     void ParsePosition(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert);
@@ -54,7 +75,11 @@ private:
     std::vector<uint32_t> roots;
     ry::Camera cam;
     std::vector <ry::Light> lgts;
+    std::vector <ry::Material> mats;
     std::vector<ry::Vertex> vertices;
     std::vector<ry::Triangle> triangles;
+
+    float tMin, tMax;
+    std::shared_ptr<BVH> bvh;
 };
 #endif

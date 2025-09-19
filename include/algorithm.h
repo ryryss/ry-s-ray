@@ -1,5 +1,5 @@
-﻿#ifndef	ALGORITHM
-#define ALGORITHM
+﻿#ifndef	ALGORITHM_H
+#define ALGORITHM_H
 #include "pub.h"
 
 namespace alg {

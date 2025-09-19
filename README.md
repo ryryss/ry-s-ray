@@ -19,6 +19,7 @@ This project requires the following third-party libraries:
 
 ## Perf
 - v1.0.0 3000+ triangles take about 3 seconds to render on intel i7-8700
+- v1.1.1 4000+ triangles simple PBR (SPP=64  bounces=3) with BVH 26s, without BVH 168s
 
 ## Version
 - v1.0.0 use the first camera  and the first light found to render target
@@ -30,11 +31,11 @@ This project requires the following third-party libraries:
 ## Test File
 See https://github.com/KhronosGroup/glTF-Sample-Models
 
-v1.0.1
+v1.1.1
 
-The color of the triangular face was directly used without interpolation.
+Need to optimize sampling direction
 
-![](rendering%20effect/v1.0.1.png)
+![](rendering%20effect/v1.1.1.png)
 
 v1.1.0
 
