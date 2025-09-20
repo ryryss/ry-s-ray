@@ -26,7 +26,7 @@ This project requires the following third-party libraries:
 - v1.0.1 multi-primitive, light,  simple texture support
 - v1.0.2 simple shadow support
 - v1.0.3 fix some bug
-- v1.1.0 PBRT base
+- v1.1.0 PBR base
 
 ## Test File
 See https://github.com/KhronosGroup/glTF-Sample-Models
@@ -39,7 +39,7 @@ Need to optimize sampling direction
 
 v1.1.0
 
-PBRT base,  sample implement Lambert diffuse reflection and cos hemispherical sampling
+PBR base,  simple implement Lambert diffuse reflection and cos hemispherical sampling
 
 ![](rendering%20effect/v1.1.0.png)
 
