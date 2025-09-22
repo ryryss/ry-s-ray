@@ -8,13 +8,12 @@ using namespace std;
 using namespace ry;
 using namespace glm;
 using namespace alg;
-
 // Ambient Shading
 vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f;
 
 Tracer::Tracer()
 {
-    maxTraces = 1;
+    maxTraces = 128;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 

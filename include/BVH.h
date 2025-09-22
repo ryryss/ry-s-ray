@@ -12,9 +12,9 @@ struct AABB {
     void expand(const ry::vec3& p) {
         min.x = std::min(min.x, p.x); min.y = std::min(min.y, p.y); min.z = std::min(min.z, p.z);
         max.x = std::max(max.x, p.x); max.y = std::max(max.y, p.y); max.z = std::max(max.z, p.z);
-        constexpr float eps = 1e-5;
-        min -= ry::vec3(eps);
-        max += ry::vec3(eps);
+        // constexpr float eps = 1e-6;
+        // min -= ry::vec3(eps);
+        // max += ry::vec3(eps);
 
     }
     void expand(const AABB& b) {
@@ -32,7 +32,7 @@ struct AABB {
             }
             t_min = std::max(t_min, t0); // enter
             t_max = std::min(t_max, t1); // leave
-            if (t_max < t_min){
+            if (t_max <= t_min){
                 return false;
             }
         }

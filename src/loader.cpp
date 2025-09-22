@@ -136,6 +136,10 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
         vert[i].pos = m * vec4(vert[i].pos, 1.0f);
         vert[i].normal = normalize(n_m * vert[i].normal);
         vert[i].i = i + vSize;
+#ifdef DEBUG
+        cout << "vert num  " << vert[i].i << " pos = ";
+        PrintVec(vert[i].pos);
+#endif // DEBUG
     }
     vertices.insert(vertices.end(), vert.begin(), vert.end());
     if (isEmissive(p.material)) {
@@ -510,8 +514,8 @@ bool Interaction::Intersect(const Ray& r, float tMin, float tMax)
 #endif
     }
 #ifdef DEBUG
-     cout << "no hit list = ";
-     for (auto i : record) {
+    cout << "no hit list = ";
+    for (auto i : record) {
          cout << i << " ";
     }
     cout << endl;

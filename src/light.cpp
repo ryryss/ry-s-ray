@@ -27,19 +27,19 @@ Spectrum Light::Sample_Li(const Sampler& s, const Interaction* isect, vec3& wi)
     wi = normalize(wi);
 
     Interaction shadowTest;
-    if (shadowTest.Intersect(Ray{ isect->p, wi }, model.GetCam().znear, length(samplePoint - isect->p) - ShadowEpsilon)) {
+    if (shadowTest.Intersect(Ray{ isect->p, wi }, model.GetCam().znear, length(samplePoint - isect->p))) {
         return Spectrum(0.); // if hit any obeject (include emissive) = shadow
     }
 
     const Material& mat = model.GetMaterial(isect->tri->material);
-    vec3 kd = mat.GetAlbedo(*isect).c;
+    Spectrum kd = mat.GetAlbedo(*isect);
 
     vec3 nl = tri.normal;
     float cosl = glm::max(0.f, dot(nl, -wi));
     float cosp = glm::max(0.f, dot(isect->normal, wi));
     float pdf = 1.0f / area;
-    vec3 Le = I.c * emissiveStrength;// / (Pi * lgt.area);
-    vec3 f = kd / Pi;
+    Spectrum Le = I.c * emissiveStrength;// / (Pi * lgt.area);
+    Spectrum f = kd / Pi;
     Li += f * Le * cosp * cosl / (dist2 * pdf);
     return Li;
 }

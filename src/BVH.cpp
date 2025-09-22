@@ -59,17 +59,15 @@ void BVH::TraverseBVH(vector<uint64_t>& res, const Ray& ray, shared_ptr<BVHNode>
     if (!node) {
         return;
     }
-
     if (node->isLeaf()) {
         res.insert(res.end(), node->indices.begin(), node->indices.end());
         return;
     }
-
-
+    // ray-box hit is treated as shadow (not inside test).
+    // return leaf directly to avoid shadow bug.
     if (!node->box.Hit(ray, 0, floatMax)) {
         return;
     }
-
     TraverseBVH(res, ray, node->l);
     TraverseBVH(res, ray, node->r);
 }
