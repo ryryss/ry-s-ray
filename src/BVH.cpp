@@ -24,10 +24,17 @@ AABB BVH::ComputeBounds(const vector<uint64_t>& indices)
 std::shared_ptr<BVHNode> BVH::BuildNode(vector<uint64_t>& indices)
 {
     auto node = std::make_shared<BVHNode>();
+    node->i = leafCnt++;
     node->box = ComputeBounds(indices);
     if (indices.size() <= maxLeafSize) {
         node->indices = indices; // store idx in leaf
-        bug += indices.size();
+#ifdef DEBUG
+        cout << "build leaf tri indices : ";
+        for (auto& i : node->indices) {
+            cout << i << " ";
+        }
+        cout << endl;
+#endif // DEBUG
         return node;
     }
     // chose a axis
@@ -63,9 +70,7 @@ void BVH::TraverseBVH(vector<uint64_t>& res, const Ray& ray, shared_ptr<BVHNode>
         res.insert(res.end(), node->indices.begin(), node->indices.end());
         return;
     }
-    // ray-box hit is treated as shadow (not inside test).
-    // return leaf directly to avoid shadow bug.
-    if (!node->box.Hit(ray, 0, floatMax)) {
+    if (!node->box.Intersect(ray, 0, floatMax)) {
         return;
     }
     TraverseBVH(res, ray, node->l);

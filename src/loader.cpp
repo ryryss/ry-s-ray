@@ -514,11 +514,11 @@ bool Interaction::Intersect(const Ray& r, float tMin, float tMax)
 #endif
     }
 #ifdef DEBUG
-    cout << "no hit list = ";
+    /*cout << "no hit list = ";
     for (auto i : record) {
          cout << i << " ";
     }
-    cout << endl;
+    cout << endl;*/
 #endif
     if (hit) {
         auto vts = Loader::GetInstance().GetTriVts(*tri);

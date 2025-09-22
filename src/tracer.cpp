@@ -62,9 +62,14 @@ void Tracer::Parallel()
 #ifdef DEBUG
                     curX = x;
                     curY = y;
-#endif
+                    if (x >= 200 && x <= 300 && y >= 200 && y <= 400) {
+                        sppBuffer[num] += vec4(RayCompute(x, y).c, 1.0);
+                        pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
+                    }
+#else
                     sppBuffer[num] += vec4(RayCompute(x, y).c, 1.0);
                     pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
+#endif
                 }
             }
         });
