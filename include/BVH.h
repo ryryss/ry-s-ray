@@ -12,40 +12,37 @@ struct AABB {
     void expand(const ry::vec3& p) {
         min.x = std::min(min.x, p.x); min.y = std::min(min.y, p.y); min.z = std::min(min.z, p.z);
         max.x = std::max(max.x, p.x); max.y = std::max(max.y, p.y); max.z = std::max(max.z, p.z);
-
-        // expand diagonally by a certain percentage
-        ry::vec3 delta = (max - min) * (0.01f);
-        min -= delta;
-        max += delta;
     }
     void expand(const AABB& b) {
         expand(b.min); expand(b.max);
     }
-
+    float surfaceArea() const {
+        ry::vec3 d = max - min;
+        return 2.0f * (d.x * d.y + d.y * d.z + d.z * d.x);
+    }
     bool Intersect(const ry::Ray& r, float tmin, float tmax) const {
-        for (int a = 0; a < 3; a++) {
-            for (int i = 0; i < 3; i++) {
-                float dInv = r.dInv[i];
-                float t0 = (min[i] - r.o[i]) * dInv;
-                float t1 = (max[i] - r.o[i]) * dInv;
-                if (dInv < 0.0f) {
-                    std::swap(t0, t1);
-                }
-                tmin = std::fmax(t0 ,tmin);
-                tmax = std::fmin(t1, tmax);
-                if (tmax <= tmin) {
-                    return false;
-                }
+        for (int i = 0; i < 3; i++) {
+            float dInv = r.dInv[i];
+            float t0 = (min[i] - r.o[i]) * dInv;
+            float t1 = (max[i] - r.o[i]) * dInv;
+            if (dInv < 0.0f) {
+                std::swap(t0, t1);
             }
-            return true;
+            tmin = std::fmax(t0 ,tmin); // enter
+            tmax = std::fmin(t1, tmax); // leave
+            if (tmax <= tmin) {
+                return false;
+            }
         }
+        return true;
     }
     ry::vec3 min;
     ry::vec3 max;
 };
 
 struct BVHNode {
-    AABB box;                       
+    AABB box;
+    AABB cBox; // centroid;
     std::shared_ptr<BVHNode> l;
     std::shared_ptr<BVHNode> r;
     std::vector<uint64_t> indices; // triangle Indices
@@ -58,12 +55,22 @@ public:
     // triangles should outlive BVH (we store indices)
     BVH(uint64_t geomCnt, int m = 4);
 
-    AABB ComputeBounds(const std::vector<uint64_t>& indices);
+    void ComputeBounds(BVHNode& b, const std::vector<uint64_t>& indices);
     std::shared_ptr<BVHNode> BuildNode(std::vector<uint64_t>& indices);
     void TraverseBVH(std::vector<uint64_t>& res, const ry::Ray& ray, const std::shared_ptr<BVHNode> node = nullptr);
     std::shared_ptr<BVHNode> root;
 private:
+    void PrintIdx(std::shared_ptr<BVHNode> node) {
+#ifdef DEBUG
+        std::cout << "build leaf tri indices : ";
+        for (auto& i : node->indices) {
+            std::cout << i << " ";
+        }
+        std::cout << std::endl;
+#endif // DEBUG
+    }
     uint8_t maxLeafSize;
     uint64_t leafCnt = 0;
+    uint64_t idxCnt = 0;
 };
 #endif

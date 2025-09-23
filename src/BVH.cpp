@@ -1,3 +1,4 @@
+#include "BVH.h"
 #include "loader.h"
 using namespace std;
 using namespace ry;
@@ -8,54 +9,110 @@ BVH::BVH(uint64_t geomCnt, int m) : maxLeafSize(m) {
     root = BuildNode(indices);
 }
 
-AABB BVH::ComputeBounds(const vector<uint64_t>& indices)
+void BVH::ComputeBounds(BVHNode& b, const vector<uint64_t>& indices)
 {
     auto& tris = Loader::GetInstance().GetTriangles();
-    AABB box;
     for (auto idx : indices) {
         auto vts = Loader::GetInstance().GetTriVts(idx);
-        box.expand(vts[0]->pos);
-        box.expand(vts[1]->pos);
-        box.expand(vts[2]->pos);
+        b.box.expand(vts[0]->pos);
+        b.box.expand(vts[1]->pos);
+        b.box.expand(vts[2]->pos);
+
+        b.cBox.expand(tris[idx].c);
     }
-    return box;
 }
 
 std::shared_ptr<BVHNode> BVH::BuildNode(vector<uint64_t>& indices)
 {
     auto node = std::make_shared<BVHNode>();
     node->i = leafCnt++;
-    node->box = ComputeBounds(indices);
+    ComputeBounds(*node.get(), indices);
+
     if (indices.size() <= maxLeafSize) {
         node->indices = indices; // store idx in leaf
-#ifdef DEBUG
-        cout << "build leaf tri indices : ";
-        for (auto& i : node->indices) {
-            cout << i << " ";
-        }
-        cout << endl;
-#endif // DEBUG
+        PrintIdx(node);
         return node;
     }
+
     // chose a axis
-    vec3 diag = node->box.max - node->box.min;
+    vec3 diag = node->cBox.max - node->cBox.min;
     uint64_t axis = 0;
     if (diag.y > diag.x) axis = 1;
     if (diag.z > diag[axis]) axis = 2;
-    // use triangle centroid to sort
-    std::sort(indices.begin(), indices.end(),
-        [&](uint64_t a, uint64_t b) {
-            auto vtsa = Loader::GetInstance().GetTriVts(a);
-            auto vtsb = Loader::GetInstance().GetTriVts(b);
-            vec3 ca = (vtsa[0]->pos + vtsa[1]->pos + vtsa[2]->pos) / 3.0f;
-            vec3 cb = (vtsb[0]->pos + vtsb[1]->pos + vtsb[2]->pos) / 3.0f;
-            return ca[axis] < cb[axis];
-        });
-    // median-split
-    size_t mid = indices.size() / 2;
-    std::vector<uint64_t> leftIndices(indices.begin(), indices.begin() + mid);
-    std::vector<uint64_t> rightIndices(indices.begin() + mid, indices.end());
 
+    constexpr uint8_t bucketCount = 12;
+    struct BucketInfo {
+        int count = 0;
+        AABB bounds;
+    };
+    std::vector<BucketInfo> buckets(bucketCount);
+
+    auto& tris = Loader::GetInstance().GetTriangles();
+    for (int idx : indices) {
+        const Triangle& tri = tris[idx];
+        vec3 c = tri.c;
+        float relative = (c[axis] - node->cBox.min[axis]) /
+            (node->cBox.max[axis] - node->cBox.min[axis] + 1e-6f);
+        int b = std::clamp(int(relative * bucketCount), 0, bucketCount - 1);
+        buckets[b].count++;
+        AABB triBox;
+        auto vts = Loader::GetInstance().GetTriVts(tri);
+        triBox.expand(vts[0]->pos);
+        triBox.expand(vts[1]->pos);
+        triBox.expand(vts[2]->pos);
+        buckets[b].bounds.expand(triBox);
+    }
+    // SAH 计算
+    float cost[bucketCount - 1];
+    for (int i = 0; i < bucketCount - 1; i++) {
+        AABB b0, b1;
+        int c0 = 0, c1 = 0;
+
+        for (int j = 0; j <= i; j++) {
+            if (buckets[j].count > 0) {
+                b0.expand(buckets[j].bounds);
+                c0 += buckets[j].count;
+            }
+        }
+        for (int j = i + 1; j < bucketCount; j++) {
+            if (buckets[j].count > 0) {
+                b1.expand(buckets[j].bounds);
+                c1 += buckets[j].count;
+            }
+        }
+
+        cost[i] = 1.0f + (c0 * b0.surfaceArea() + c1 * b1.surfaceArea()) / node->box.surfaceArea();
+    }
+
+    // 找到最优分裂位置
+    float minCost = cost[0];
+    int minSplit = 0;
+    for (int i = 1; i < bucketCount - 1; i++) {
+        if (cost[i] < minCost) {
+            minCost = cost[i];
+            minSplit = i;
+        }
+    }
+
+    // 如果 SAH 不划算，就建叶子
+    if (minCost >= indices.size()) {
+        node->indices = indices;
+        idxCnt += indices.size();
+        PrintIdx(node);
+        return node;
+    }
+
+    // 分裂 indices
+    std::vector<uint64_t> leftIndices, rightIndices;
+    for (int idx : indices) {
+        const Triangle& tri = tris[idx];
+        vec3 c = tri.c;
+        float relative = (c[axis] - node->cBox.min[axis]) /
+            (node->cBox.max[axis] - node->cBox.min[axis] + 1e-6f);
+        int b = std::clamp(int(relative * bucketCount), 0, bucketCount - 1);
+        if (b <= minSplit) leftIndices.push_back(idx);
+        else rightIndices.push_back(idx);
+    }
     node->l = BuildNode(leftIndices);
     node->r = BuildNode(rightIndices);
     return node;

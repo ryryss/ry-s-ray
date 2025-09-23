@@ -171,7 +171,7 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
         auto& a = vertices[tri.vertIdx[0]].pos;
         auto& b = vertices[tri.vertIdx[1]].pos;
         auto& c = vertices[tri.vertIdx[2]].pos;
-
+        tri.c = (a + b + c) / 3.0f;
         tri.normal = normalize(cross(b - a, c - a));
         if (isEmissive(p.material)) {
             lgts.back().tris.push_back(tri.i);
