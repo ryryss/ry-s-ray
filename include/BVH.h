@@ -48,6 +48,14 @@ struct BVHNode {
     std::vector<uint64_t> indices; // triangle Indices
     uint64_t i;
     bool isLeaf() const { return l == nullptr && r == nullptr; }
+    uint8_t SplitAxis() {
+        // chose a axis
+        ry::vec3 diag = cBox.max - cBox.min;
+        uint8_t axis = 0;
+        if (diag.y > diag.x) { axis = 1; }
+        if (diag.z > diag[axis]) { axis = 2; }
+        return axis;
+    }
 };
 
 class BVH {
@@ -57,6 +65,10 @@ public:
 
     void ComputeBounds(BVHNode& b, const std::vector<uint64_t>& indices);
     std::shared_ptr<BVHNode> BuildNode(std::vector<uint64_t>& indices);
+    bool BVH::SAHSplit(const std::shared_ptr<BVHNode> node, const std::vector<uint64_t>& indices,
+        std::vector<uint64_t>& l, std::vector<uint64_t>& r);
+    void BVH::MidSplit(const std::shared_ptr<BVHNode> node, std::vector<uint64_t>& indices,
+        std::vector<uint64_t>& l, std::vector<uint64_t>& r);
     void TraverseBVH(std::vector<uint64_t>& res, const ry::Ray& ray, const std::shared_ptr<BVHNode> node = nullptr);
     std::shared_ptr<BVHNode> root;
 private:
@@ -71,6 +83,5 @@ private:
     }
     uint8_t maxLeafSize;
     uint64_t leafCnt = 0;
-    uint64_t idxCnt = 0;
 };
 #endif

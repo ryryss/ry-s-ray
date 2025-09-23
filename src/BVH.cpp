@@ -20,6 +20,10 @@ void BVH::ComputeBounds(BVHNode& b, const vector<uint64_t>& indices)
 
         b.cBox.expand(tris[idx].c);
     }
+    /*expand diagonally by a certain percentage
+    ry::vec3 delta = (b.box.max - b.box.min) * (0.5f);
+    b.box.min -= delta;
+    b.box.max += delta;*/
 }
 
 std::shared_ptr<BVHNode> BVH::BuildNode(vector<uint64_t>& indices)
@@ -34,26 +38,34 @@ std::shared_ptr<BVHNode> BVH::BuildNode(vector<uint64_t>& indices)
         return node;
     }
 
-    // chose a axis
-    vec3 diag = node->cBox.max - node->cBox.min;
-    uint64_t axis = 0;
-    if (diag.y > diag.x) axis = 1;
-    if (diag.z > diag[axis]) axis = 2;
+    vector<uint64_t> left;
+    vector<uint64_t> right;
+    if (!SAHSplit(node, indices, left, right)) {
+        node->indices = indices;
+        PrintIdx(node);
+        return node;
+    }
+    node->l = BuildNode(left);
+    node->r = BuildNode(right);
+    return node;
+}
 
+bool BVH::SAHSplit(const shared_ptr<BVHNode> node, const vector<uint64_t>& indices, vector<uint64_t>& l, vector<uint64_t>& r)
+{
+    auto axis = node->SplitAxis();
     constexpr uint8_t bucketCount = 12;
     struct BucketInfo {
         int count = 0;
         AABB bounds;
     };
-    std::vector<BucketInfo> buckets(bucketCount);
+    vector<BucketInfo> buckets(bucketCount);
 
     auto& tris = Loader::GetInstance().GetTriangles();
     for (int idx : indices) {
         const Triangle& tri = tris[idx];
-        vec3 c = tri.c;
-        float relative = (c[axis] - node->cBox.min[axis]) /
+        float relative = (tri.c[axis] - node->cBox.min[axis]) /
             (node->cBox.max[axis] - node->cBox.min[axis] + 1e-6f);
-        int b = std::clamp(int(relative * bucketCount), 0, bucketCount - 1);
+        int b = clamp(int(relative * bucketCount), 0, bucketCount - 1);
         buckets[b].count++;
         AABB triBox;
         auto vts = Loader::GetInstance().GetTriVts(tri);
@@ -62,7 +74,7 @@ std::shared_ptr<BVHNode> BVH::BuildNode(vector<uint64_t>& indices)
         triBox.expand(vts[2]->pos);
         buckets[b].bounds.expand(triBox);
     }
-    // SAH 计算
+    // cal SAH
     float cost[bucketCount - 1];
     for (int i = 0; i < bucketCount - 1; i++) {
         AABB b0, b1;
@@ -80,11 +92,9 @@ std::shared_ptr<BVHNode> BVH::BuildNode(vector<uint64_t>& indices)
                 c1 += buckets[j].count;
             }
         }
-
         cost[i] = 1.0f + (c0 * b0.surfaceArea() + c1 * b1.surfaceArea()) / node->box.surfaceArea();
     }
-
-    // 找到最优分裂位置
+    // find best split
     float minCost = cost[0];
     int minSplit = 0;
     for (int i = 1; i < bucketCount - 1; i++) {
@@ -93,29 +103,35 @@ std::shared_ptr<BVHNode> BVH::BuildNode(vector<uint64_t>& indices)
             minSplit = i;
         }
     }
-
-    // 如果 SAH 不划算，就建叶子
+    // can not split
     if (minCost >= indices.size()) {
-        node->indices = indices;
-        idxCnt += indices.size();
-        PrintIdx(node);
-        return node;
+        return false;
     }
-
-    // 分裂 indices
-    std::vector<uint64_t> leftIndices, rightIndices;
+    // split idx
     for (int idx : indices) {
         const Triangle& tri = tris[idx];
-        vec3 c = tri.c;
-        float relative = (c[axis] - node->cBox.min[axis]) /
+        float relative = (tri.c[axis] - node->cBox.min[axis]) /
             (node->cBox.max[axis] - node->cBox.min[axis] + 1e-6f);
-        int b = std::clamp(int(relative * bucketCount), 0, bucketCount - 1);
-        if (b <= minSplit) leftIndices.push_back(idx);
-        else rightIndices.push_back(idx);
+        int b = clamp(int(relative * bucketCount), 0, bucketCount - 1);
+        b <= minSplit ? l.push_back(idx) : r.push_back(idx);
     }
-    node->l = BuildNode(leftIndices);
-    node->r = BuildNode(rightIndices);
-    return node;
+    return true;
+}
+
+void BVH::MidSplit(const shared_ptr<BVHNode> node, vector<uint64_t>& indices, vector<uint64_t>& l, vector<uint64_t>& r)
+{
+    // chose a axis
+    auto axis = node->SplitAxis();
+    // use triangle centroid to sort
+    auto& tris = Loader::GetInstance().GetTriangles();
+    std::sort(indices.begin(), indices.end(),
+        [&](uint64_t a, uint64_t b) {
+            return tris[a].c[axis] < tris[b].c[axis];
+        });
+    // median-split
+    size_t mid = indices.size() / 2;
+    l = std::vector<uint64_t>(indices.begin(), indices.begin() + mid);
+    r = std::vector<uint64_t>(indices.begin() + mid, indices.end());
 }
 
 void BVH::TraverseBVH(vector<uint64_t>& res, const Ray& ray, shared_ptr<BVHNode> node)
