@@ -10,7 +10,6 @@ if (CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/_deps")
-set(3rd_libs "")
 find_package(deps REQUIRED)
 find_package(OpenGL REQUIRED)
 
