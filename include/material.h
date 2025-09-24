@@ -7,7 +7,7 @@ class Material {
 public:
 	Material() {}
 	void SetRawPtr(tinygltf::Model* pModel, tinygltf::Material* pMat);
-    virtual Spectrum GetAlbedo(const Interaction& si) const;
+    virtual Spectrum GetAlbedo(const Interaction& isect) const;
     virtual std::unique_ptr<BSDF> CreateBSDF(const Interaction& si) const;
 private:
 	vec4 GetTexture(const Interaction& si) const;

@@ -490,18 +490,18 @@ void Loader::ProcessCamera(const Screen& scr)
 bool Interaction::Intersect(const Ray& r, float tMin, float tMax)
 {
     vector<uint64_t> tIdxs;
-    auto bvh = Loader::GetInstance().GetBvh();
-    bvh->TraverseBVH(tIdxs, r, bvh->root);
+    // auto bvh = Loader::GetInstance().GetBvh();
+    // bvh->TraverseBVH(tIdxs, r, bvh->root);
     auto& ts = Loader::GetInstance().GetTriangles();
     bool hit = false;
     float t, gu, gv;
     this->tMin = tMax;
-    for (auto& i : tIdxs) {
+    for (auto& i : ts) {
         auto vts = Loader::GetInstance().GetTriVts(i);
         if (alg::Moller_Trumbore(r.o, r.d, vts[0]->pos, vts[1]->pos, vts[2]->pos, t, gu, gv) &&
             t > tMin && t < this->tMin && t < tMax) {
             this->tMin = t;
-            this->tri = &ts[i];
+            this->tri = &i;
             this->bary = { 1 - gu - gv, gu, gv };
             this->p = r.o + t * r.d;
             this->vts = vts;

@@ -14,15 +14,32 @@ void ry::Material::SetRawPtr(tinygltf::Model* pModel, tinygltf::Material* pMat)
         pbr.baseColorFactor[2], pbr.baseColorFactor[3]);
 }
 
-Spectrum Material::GetAlbedo(const Interaction& si) const
+Spectrum Material::GetAlbedo(const Interaction& isect) const
 {
-	return baseColorFactor * GetTexture(si);
+	return baseColorFactor * GetTexture(isect);
 }
 
 unique_ptr<BSDF> Material::CreateBSDF(const Interaction& si) const
 {
-	unique_ptr<BSDF> b = make_unique<BSDF>(si.normal);
-	b->Add(make_unique<LambertianReflection>(GetAlbedo(si)));
+    auto& pbr = m->pbrMetallicRoughness;
+    auto baseColor = GetAlbedo(si);
+    unique_ptr<BSDF> b = make_unique<BSDF>(si.normal);
+
+    // diffuse
+    if (pbr.metallicFactor < 1.0f) {
+        Spectrum diffuseColor = baseColor * (1.0f - (float)pbr.metallicFactor);
+        if (!diffuseColor.IsBlack()) {
+            b->Add(make_unique<LambertianReflection>(diffuseColor));
+        }
+    }
+
+    // specular GGX/Trowbridge-Reitz
+    // Spectrum F0 = glm::mix(Spectrum(0.04f).c, baseColor.c, pbr.metallicFactor);
+    auto distrib = make_shared<TrowbridgeReitzDistribution>(
+        pbr.roughnessFactor, pbr.roughnessFactor);
+    auto fresnel = make_shared<FresnelNoOp>();
+    b->Add(make_unique<MicrofacetReflection>(
+        baseColor, distrib, fresnel));
 	return b;
 }
 
