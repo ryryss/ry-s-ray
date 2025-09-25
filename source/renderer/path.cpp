@@ -8,13 +8,13 @@ using namespace glm;
 // Ambient
 vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f;
 
-ry::PathRenderer::PathRenderer()
+PathRenderer::PathRenderer()
 {
 	maxTraces = 128;
 	cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 
-void ry::PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
+void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
 {
     auto& cam = s->GetActiveCamera();
     if (screenx <= 0 && screeny <= 0) {
@@ -40,7 +40,7 @@ void ry::PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4
     sppBuffer.clear();
 }
 
-void ry::PathRenderer::Parallel()
+void PathRenderer::Parallel()
 {
     auto& t = Task::GetInstance();
 #ifdef DEBUG
@@ -91,7 +91,7 @@ void ry::PathRenderer::Parallel()
     }*/
 }
 
-ry::Ray ry::PathRenderer::RayGeneration(uint32_t x, uint32_t y)
+Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
 {
     vec3 o, d;
     auto& cam = scene->GetActiveCamera();
@@ -107,14 +107,14 @@ ry::Ray ry::PathRenderer::RayGeneration(uint32_t x, uint32_t y)
     return { o, d };
 }
 
-Spectrum ry::PathRenderer::PathTracing(uint32_t x, uint32_t y)
+Spectrum PathRenderer::PathTracing(uint32_t x, uint32_t y)
 {
     Spectrum Lo(0.);
     Lo += Li(RayGeneration(x, y));
     return Lo;
 }
 
-Spectrum ry::PathRenderer::Li(const ry::Ray& r)
+Spectrum PathRenderer::Li(const Ray& r)
 {
     Spectrum Lo(0.);
     Spectrum beta(1.f);
@@ -135,7 +135,7 @@ Spectrum ry::PathRenderer::Li(const ry::Ray& r)
         if (bounce == 0) {
             // process specular 
         }
-        Lo += beta * EstimateDirect(isect);
+        return Lo += beta * EstimateDirect(isect);
 
         // indirect
         Sampler s;
@@ -163,7 +163,7 @@ Spectrum ry::PathRenderer::Li(const ry::Ray& r)
     return Lo;
 }
 
-Spectrum ry::PathRenderer::EstimateDirect(const ry::Interaction& isect)
+Spectrum PathRenderer::EstimateDirect(const Interaction& isect)
 {
     // TODO: need random choose a light
     // TODO: MIS

@@ -8,7 +8,7 @@ using namespace glm;
 
 bool Model::LoadFromFile(const string& file)
 {
-    tinygltf::TinyGLTF loader;
+    gltf::TinyGLTF loader;
     string err;
     string warn;
 
@@ -31,7 +31,7 @@ bool Model::LoadFromFile(const string& file)
     return true;
 }
 
-void ry::Model::ParseNode()
+void Model::ParseNode()
 {
     if (model.scenes.size() > 1) {
         throw ("now just sup 1 cam 1 scene");
@@ -51,7 +51,7 @@ void ry::Model::ParseNode()
     }
 }
 
-void ry::Model::ParseMesh(int num)
+void Model::ParseMesh(int num)
 {
     const auto& n = model.nodes[num];
     if (n.mesh < 0) {
@@ -66,7 +66,7 @@ void ry::Model::ParseMesh(int num)
     }
 }
 
-void ry::Model::ParseChildNode(int num)
+void Model::ParseChildNode(int num)
 {
     const auto& n = model.nodes[num];
     auto& p = nodes[num]; // parent
@@ -83,14 +83,14 @@ void ry::Model::ParseChildNode(int num)
     }
 }
 
-void ry::Model::ParseCamera(int num)
+void Model::ParseCamera(int num)
 {
     const auto& n = model.nodes[num];
     if (n.camera < 0) {
         return;
     }
     const auto& node = nodes[num];
-    auto cam = ry::Camera(node);
+    auto cam = Camera(node);
 
     const auto& c = model.cameras[n.camera];
     cam.type = c.type;
@@ -124,14 +124,14 @@ void ry::Model::ParseCamera(int num)
     cameras.push_back(cam);
 }
 
-void ry::Model::ParseLight(int num)
+void Model::ParseLight(int num)
 {
     const auto& n = model.nodes[num];
     if (n.light < 0) {
         return;
     }
     const auto& node = nodes[num];
-    auto light = ry::Light(node);
+    auto light = Light(node);
 
     const auto& l = model.lights[n.light];
     light.type = l.type;
@@ -142,7 +142,7 @@ void ry::Model::ParseLight(int num)
     lights.push_back(light);
 }
 
-void ry::Model::ParseMaterial(int num)
+void Model::ParseMaterial(int num)
 {
     if (num < 0) {
         return;
@@ -154,7 +154,7 @@ void ry::Model::ParseMaterial(int num)
     materials.push_back(mat);
 }
 
-void ry::Model::ParseEmissiveMaterial(int num, const vector<uint64_t>& ids)
+void Model::ParseEmissiveMaterial(int num, const vector<uint64_t>& ids)
 {
     if (num < 0) {
         return;
@@ -192,7 +192,7 @@ void ry::Model::ParseEmissiveMaterial(int num, const vector<uint64_t>& ids)
     lights.push_back(light);
 }
 
-std::vector<uint32_t> ry::Model::ParseVertIdx(const gltf::Primitive& p)
+std::vector<uint32_t> Model::ParseVertIdx(const gltf::Primitive& p)
 {
     vector<uint32_t> res;
     if (p.indices < 0) {
@@ -223,10 +223,10 @@ std::vector<uint32_t> ry::Model::ParseVertIdx(const gltf::Primitive& p)
     return res;
 }
 
-void ry::Model::ParsePrimitive(const gltf::Primitive& p, const ry::mat4& m)
+void Model::ParsePrimitive(const gltf::Primitive& p, const mat4& m)
 {
     const auto idx = move(ParseVertIdx(p));
-    std::vector<ry::Vertex> vert;
+    std::vector<Vertex> vert;
     ParsePosition(p, vert);
     ParseTexTureCoord(p, vert);
     ParseNormal(p, vert);
@@ -274,7 +274,7 @@ void ry::Model::ParsePrimitive(const gltf::Primitive& p, const ry::mat4& m)
     }
 }
 
-void ry::Model::ParseTexTureCoord(const tinygltf::Primitive& p, std::vector<Vertex>& vert)
+void Model::ParseTexTureCoord(const gltf::Primitive& p, std::vector<Vertex>& vert)
 {
     // https://github.khronos.org/glTF-Tutorials/gltfTutorial/gltfTutorial_013_SimpleTexture.html
     // TODO: mult texturescoord sup
@@ -324,7 +324,7 @@ void ry::Model::ParseTexTureCoord(const tinygltf::Primitive& p, std::vector<Vert
     }
 }
 
-void ry::Model::ParseNormal(const tinygltf::Primitive& p, std::vector<Vertex>& vert)
+void Model::ParseNormal(const gltf::Primitive& p, std::vector<Vertex>& vert)
 {
     auto it = p.attributes.find("NORMAL");
     if (it == p.attributes.end()) {
@@ -358,7 +358,7 @@ void ry::Model::ParseNormal(const tinygltf::Primitive& p, std::vector<Vertex>& v
     }
 }
 
-void ry::Model::ParseVertColor(const tinygltf::Primitive& p, std::vector<Vertex>& vert)
+void Model::ParseVertColor(const gltf::Primitive& p, std::vector<Vertex>& vert)
 {
     auto it = p.attributes.find("COLOR_0");
     if (it == p.attributes.end()) {
@@ -412,7 +412,7 @@ void ry::Model::ParseVertColor(const tinygltf::Primitive& p, std::vector<Vertex>
     }
 }
 
-void ry::Model::ParsePosition(const tinygltf::Primitive& p, std::vector<Vertex>& vert)
+void Model::ParsePosition(const gltf::Primitive& p, std::vector<Vertex>& vert)
 {
     auto it = p.attributes.find("POSITION");
     if (it == p.attributes.end()) {

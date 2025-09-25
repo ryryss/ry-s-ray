@@ -11,8 +11,8 @@ public:
         generator.seed(rd());
     }
 
-    inline ry::vec2 Get2D() const {
-        return ry::vec2(Get1D(), Get1D());
+    inline vec2 Get2D() const {
+        return vec2(Get1D(), Get1D());
     }
 
     inline float Get1D() const {

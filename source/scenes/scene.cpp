@@ -10,11 +10,11 @@ void Scene::AddModel(string file)
 	ParseModel(models.back());
 }
 
-void ry::Scene::DelModel()
+void Scene::DelModel()
 {
 }
 
-void ry::Scene::ProcessCamera(uint16_t scrw, uint16_t scrh)
+void Scene::ProcessCamera(uint16_t scrw, uint16_t scrh)
 {
 	for (auto& cam : cameras) {
 		if (cam.type == "perspective") {
@@ -26,13 +26,13 @@ void ry::Scene::ProcessCamera(uint16_t scrw, uint16_t scrh)
 	}
 }
 
-const Light& ry::Scene::SampleOneLight()
+const Light& Scene::SampleOneLight()
 {
 	Sampler s;
 	return lights[s.GetIntInRange(0, lights.size() - 1)];
 }
 
-bool ry::Scene::Intersect(const Ray& r, Interaction& isect) const
+bool Scene::Intersect(const Ray& r, Interaction& isect) const
 {
 	bool hit = false;
 	float t, gu, gv;
@@ -63,7 +63,7 @@ bool ry::Scene::Intersect(const Ray& r, Interaction& isect) const
 	return hit;
 }
 
-void ry::Scene::ParseModel(const Model& model)
+void Scene::ParseModel(const Model& model)
 {
 	int matCnt = materials.size();
 	for (auto tri : model.triangles) {

@@ -2,7 +2,6 @@
 #include "geometry.hpp"
 #include "light.h"
 #include "material.h"
-namespace gltf = tinygltf;
 namespace ry {
 class Scene;
 // tinygltf wrapper
@@ -26,18 +25,18 @@ private:
     void ParseMaterial(int num);
     void ParseEmissiveMaterial(int num, const std::vector<uint64_t>& ids);
 
-    std::vector<uint32_t> ParseVertIdx(const tinygltf::Primitive& p);
-    void ParsePrimitive(const tinygltf::Primitive& p, const mat4& m);
-    void ParseTexTureCoord(const tinygltf::Primitive& p, std::vector<Vertex>& vert);
-    void ParseNormal(const tinygltf::Primitive& p, std::vector<Vertex>& vert);
-    void ParseVertColor(const tinygltf::Primitive& p, std::vector<Vertex>& vert);
-    void ParsePosition(const tinygltf::Primitive& p, std::vector<Vertex>& vert);
+    std::vector<uint32_t> ParseVertIdx(const gltf::Primitive& p);
+    void ParsePrimitive(const gltf::Primitive& p, const mat4& m);
+    void ParseTexTureCoord(const gltf::Primitive& p, std::vector<Vertex>& vert);
+    void ParseNormal(const gltf::Primitive& p, std::vector<Vertex>& vert);
+    void ParseVertColor(const gltf::Primitive& p, std::vector<Vertex>& vert);
+    void ParsePosition(const gltf::Primitive& p, std::vector<Vertex>& vert);
 
     mat4 GetNodeMat(int num);
-    std::vector <ry::Light> lights;
+    std::vector <Light> lights;
     std::vector <Camera> cameras;
-    std::vector <ry::Material> materials;
-    // std::vector <ry::Material> mats;
+    std::vector <Material> materials;
+    // std::vector <Material> mats;
 	gltf::Model model;
     std::vector<Node> nodes;
     std::vector<uint32_t> roots;

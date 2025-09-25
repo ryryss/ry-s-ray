@@ -6,7 +6,7 @@ class Scene;
 class Material {
 public:
 	Material() {}
-	void SetRawPtr(tinygltf::Model* pModel, tinygltf::Material* pMat);
+	void SetRawPtr(gltf::Model* pModel, gltf::Material* pMat);
 	inline void SetEmissiveInfo(const vec4& factor, float strength) {
 		baseColorFactor = factor;
 		emissiveStrength = strength;
@@ -23,14 +23,14 @@ public:
 
 	std::unique_ptr<BSDF> CreateBSDF(const Scene* s, const Interaction* isect) const;
 private:
-	vec4 ry::Material::GetTexture(const vec2& uv) const;
+	vec4 Material::GetTexture(const vec2& uv) const;
 
-	tinygltf::Material* m = nullptr;
-	tinygltf::Model* model = nullptr;
+	gltf::Material* m = nullptr;
+	gltf::Model* model = nullptr;
 	// TODO texture and sample
-	tinygltf::Image* image = nullptr;
+	gltf::Image* image = nullptr;
 
-	ry::vec4 baseColorFactor;
+	vec4 baseColorFactor;
 	float emissiveStrength = 0.0;
 };
 }

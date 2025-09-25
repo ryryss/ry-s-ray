@@ -3,7 +3,7 @@
 #include "scene.h"
 using namespace std;
 using namespace ry;
-void ry::Material::SetRawPtr(tinygltf::Model* pModel, tinygltf::Material* pMat)
+void Material::SetRawPtr(gltf::Model* pModel, gltf::Material* pMat)
 {
 	model = pModel;
 	m = pMat;
@@ -11,6 +11,8 @@ void ry::Material::SetRawPtr(tinygltf::Model* pModel, tinygltf::Material* pMat)
 	if (auto idx = pbr.baseColorTexture.index; idx >= 0) {
 		image = &model->images[idx];
 	}
+    baseColorFactor = vec4(pbr.baseColorFactor[0], pbr.baseColorFactor[1],
+        pbr.baseColorFactor[2], pbr.baseColorFactor[3]);
 }
 
 vec4 Material::GetAlbedo(const vec2& uv) const
@@ -18,7 +20,7 @@ vec4 Material::GetAlbedo(const vec2& uv) const
 	return baseColorFactor * GetTexture(uv);
 }
 
-unique_ptr<BSDF> ry::Material::CreateBSDF(const Scene* s, const Interaction* isect) const
+unique_ptr<BSDF> Material::CreateBSDF(const Scene* s, const Interaction* isect) const
 {
     auto& pbr = m->pbrMetallicRoughness;
     const auto& a = s->GetVertex(isect->tri->vertIdx[0]);
@@ -38,7 +40,7 @@ unique_ptr<BSDF> ry::Material::CreateBSDF(const Scene* s, const Interaction* ise
     return bsdf;
 }
 
-vec4 ry::Material::GetTexture(const vec2& uv) const
+vec4 Material::GetTexture(const vec2& uv) const
 {
     if (image == nullptr) {
         return vec4(1.0f);

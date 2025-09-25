@@ -4,21 +4,11 @@ using namespace ry;
 using namespace std;
 using namespace glm;
 
-Spectrum Light::Sample_Li(const Scene* scene, const ry::Interaction* isect, ry::vec3& wi) const
+Spectrum Light::Sample_Li(const Scene* scene, const Interaction* isect, vec3& wi) const
 {
     Spectrum Li(0.);
-    const auto& a = scene->GetVertex(isect->tri->vertIdx[0]);
-    const auto& b = scene->GetVertex(isect->tri->vertIdx[1]);
-    const auto& c = scene->GetVertex(isect->tri->vertIdx[2]);
-    // sample a point from light, default : area light
-    Sampler s;
-    float u = s.Get1D();
-    float v = s.Get1D();
-    if (u + v > 1.0f) {
-        u = 1 - u;
-        v = 1 - v;
-    }
-    vec3 samplePoint = (1 - u - v) * a->pos + u * b->pos + v * c->pos;
+
+    auto samplePoint = SamplePoint(scene);
     wi = samplePoint - isect->p;
     float dist2 = glm::max(dot(wi, wi), 0.0f);
     wi = normalize(wi);
@@ -31,15 +21,37 @@ Spectrum Light::Sample_Li(const Scene* scene, const ry::Interaction* isect, ry::
     }
 
     const Material* mat = isect->mat;
+    const auto& a = scene->GetVertex(isect->tri->vertIdx[0]);
+    const auto& b = scene->GetVertex(isect->tri->vertIdx[1]);
+    const auto& c = scene->GetVertex(isect->tri->vertIdx[2]);
     vec2 uv = isect->bary[0] * a->uv + isect->bary[1] * b->uv + isect->bary[2] * c->uv;
     Spectrum kd = mat->GetAlbedo(uv);
 
     vec3 nl = isect->tri->normal;
     float cosl = glm::max(0.f, dot(nl, -wi));
     float cosp = glm::max(0.f, dot(isect->normal, wi));
-    float pdf = 1.0f / area;
+    float pdf = 1.0f / area; // uniform surface sampling
     Spectrum Le = I.c * emissiveStrength;// / (Pi * lgt.area);
     Spectrum f = kd / Pi;
     Li += f * Le * cosp * cosl / (dist2 * pdf);
     return Li;
+}
+
+vec3 Light::SamplePoint(const Scene* scene) const
+{
+    // sample a point from light, default : area light
+    Sampler s;
+    auto triangle = scene->GetTriangle(s.GetIntInRange(0, triangles.size() - 1));
+    
+    float u = s.Get1D();
+    float v = s.Get1D();
+    if (u + v > 1.0f) {
+        u = 1 - u;
+        v = 1 - v;
+    }
+    const auto& a = scene->GetVertex(triangle->vertIdx[0]);
+    const auto& b = scene->GetVertex(triangle->vertIdx[1]);
+    const auto& c = scene->GetVertex(triangle->vertIdx[2]);
+
+    return (1 - u - v) * a->pos + u * b->pos + v * c->pos;
 }

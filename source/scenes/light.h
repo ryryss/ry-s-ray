@@ -8,9 +8,9 @@ class Scene;
 class Light : public Node {
 public:
     Light() {};
-    Light(const ry::Node& other) : ry::Node(other) {};
-    Spectrum Sample_Li(const Scene* scene, const ry::Interaction* isect, ry::vec3& wi) const;
-
+    Light(const Node& other) : Node(other) {};
+    Spectrum Sample_Li(const Scene* scene, const Interaction* isect, vec3& wi) const;
+    vec3 SamplePoint(const Scene* scene) const;
     float area = 0.0f;
     float emissiveStrength;
     Spectrum I; // or emissiveFactor

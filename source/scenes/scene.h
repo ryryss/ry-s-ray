@@ -27,9 +27,9 @@ private:
 
 	std::vector<Model> models;
 
-	std::vector <ry::Light> lights;
+	std::vector <Light> lights;
 	std::vector <Camera> cameras;
-	std::vector <ry::Material> materials;
+	std::vector <Material> materials;
 	std::vector<Vertex> vertices;
 	std::vector<Triangle> triangles;
 

@@ -26,7 +26,7 @@ inline vec3 CosineSampleHemisphere(const vec2& u) {
     return vec3(d.x, d.y, z);
 }
 
-BSDF::BSDF(const ry::vec3& sn) : n(sn)
+BSDF::BSDF(const vec3& sn) : n(sn)
 {
     fabs(n.x) > fabs(n.z)?
         t = normalize(vec3(-n.y, n.x, 0)):
@@ -34,7 +34,7 @@ BSDF::BSDF(const ry::vec3& sn) : n(sn)
     b = cross(n, t);
 }
 
-Spectrum BSDF::Sample_f(const ry::vec3& woWorld, ry::vec3* wiWorld, ry::vec2& u, float* pdf, BxDFType type) const
+Spectrum BSDF::Sample_f(const vec3& woWorld, vec3* wiWorld, vec2& u, float* pdf, BxDFType type) const
 {    
     // Cosine-sample the hemisphere, flipping the direction if necessary
     vec3 wi, wo = ToLocal(woWorld);
@@ -46,12 +46,12 @@ Spectrum BSDF::Sample_f(const ry::vec3& woWorld, ry::vec3* wiWorld, ry::vec2& u,
     return f;
 }
 
-Spectrum LambertianReflection::f(const ry::vec3& wo, const ry::vec3& wi) const
+Spectrum LambertianReflection::f(const vec3& wo, const vec3& wi) const
 {
     return R * InvPi;
 }
 
-Spectrum BxDF::Sample_f(const ry::vec3& wo, ry::vec3* wi, const ry::vec2& u, float* pdf, BxDFType* sampledType) const
+Spectrum BxDF::Sample_f(const vec3& wo, vec3* wi, const vec2& u, float* pdf, BxDFType* sampledType) const
 {
     *wi = CosineSampleHemisphere(u);
     if (wo.z < 0) wi->z *= -1;
@@ -59,7 +59,7 @@ Spectrum BxDF::Sample_f(const ry::vec3& wo, ry::vec3* wi, const ry::vec2& u, flo
     return f(wo, *wi);
 }
 
-float BxDF::Pdf(const ry::vec3& wo, const ry::vec3& wi) const
+float BxDF::Pdf(const vec3& wo, const vec3& wi) const
 {
     return wo.z * wi.z > 0 ? std::abs(wi.z) * InvPi : 0;
 }

@@ -18,15 +18,15 @@ public:
     virtual ~BxDF() {}
     BxDF(BxDFType type) : type(type) {}
     bool MatchesFlags(BxDFType t) const { return (type & t) == type; }
-    virtual Spectrum f(const ry::vec3& wo, const ry::vec3& wi) const = 0;
-    virtual Spectrum Sample_f(const ry::vec3& wo, ry::vec3* wi,
-        const ry::vec2& u, float* pdf,
+    virtual Spectrum f(const vec3& wo, const vec3& wi) const = 0;
+    virtual Spectrum Sample_f(const vec3& wo, vec3* wi,
+        const vec2& u, float* pdf,
         BxDFType* sampledType = nullptr) const;
-    /*virtual Spectrum rho(const ry::vec3& wo, int nSamples,
-        const ry::vec2* samples) const;
-    virtual Spectrum rho(int nSamples, const ry::vec2* samples1,
-        const ry::vec2* samples2) const;*/
-    virtual float Pdf(const ry::vec3& wo, const ry::vec3& wi) const;
+    /*virtual Spectrum rho(const vec3& wo, int nSamples,
+        const vec2* samples) const;
+    virtual Spectrum rho(int nSamples, const vec2* samples1,
+        const vec2* samples2) const;*/
+    virtual float Pdf(const vec3& wo, const vec3& wi) const;
 
     // BxDF Public Data
     const BxDFType type;
@@ -37,9 +37,9 @@ public:
     // LambertianReflection Public Methods
     LambertianReflection(const Spectrum& r)
         : BxDF(BxDFType(BSDF_REFLECTION | BSDF_DIFFUSE)), R(r) {}
-    Spectrum f(const ry::vec3& wo, const ry::vec3& wi) const override;
-    Spectrum rho(const ry::vec3&, int, const ry::vec2*) const { return R; }
-    Spectrum rho(int, const ry::vec2*, const ry::vec2*) const { return R; }
+    Spectrum f(const vec3& wo, const vec3& wi) const override;
+    Spectrum rho(const vec3&, int, const vec2*) const { return R; }
+    Spectrum rho(int, const vec2*, const vec2*) const { return R; }
 
 private:
     // LambertianReflection Private Data
@@ -48,21 +48,21 @@ private:
 
 class BSDF {
 public:
-    BSDF(const ry::vec3& sn);
-    Spectrum BSDF::Sample_f(const ry::vec3& woWorld, ry::vec3* wiWorld,
-        ry::vec2& u, float* pdf, BxDFType type) const;
+    BSDF(const vec3& sn);
+    Spectrum BSDF::Sample_f(const vec3& woWorld, vec3* wiWorld,
+        vec2& u, float* pdf, BxDFType type) const;
     void Add(std::unique_ptr<BxDF> b) {
         bxdfs.push_back(std::move(b));
     }
-    inline ry::vec3 ToWorld(const ry::vec3& local) const {
+    inline vec3 ToWorld(const vec3& local) const {
         return local.x * t + local.y * b + local.z * n;
     }
-    inline ry::vec3 ToLocal(const ry::vec3& world) const {
-        return ry::vec3(dot(world, t), dot(world, b), dot(world, n));
+    inline vec3 ToLocal(const vec3& world) const {
+        return vec3(dot(world, t), dot(world, b), dot(world, n));
     }
 private:
     // static int MaxBxDFs = 8;
     std::vector<std::unique_ptr<BxDF>> bxdfs;
-    ry::vec3 n, b, t;
+    vec3 n, b, t;
 };
 }
