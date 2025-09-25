@@ -1,5 +1,6 @@
 #include "material.h"
-
+#include "interaction.hpp"
+#include "scene.h"
 using namespace std;
 using namespace ry;
 void ry::Material::SetRawPtr(tinygltf::Model* pModel, tinygltf::Material* pMat)
@@ -10,13 +11,31 @@ void ry::Material::SetRawPtr(tinygltf::Model* pModel, tinygltf::Material* pMat)
 	if (auto idx = pbr.baseColorTexture.index; idx >= 0) {
 		image = &model->images[idx];
 	}
-    baseColorFactor = vec4(pbr.baseColorFactor[0], pbr.baseColorFactor[1],
-        pbr.baseColorFactor[2], pbr.baseColorFactor[3]);
 }
 
 vec4 Material::GetAlbedo(const vec2& uv) const
 {
 	return baseColorFactor * GetTexture(uv);
+}
+
+unique_ptr<BSDF> ry::Material::CreateBSDF(const Scene* s, const Interaction* isect) const
+{
+    auto& pbr = m->pbrMetallicRoughness;
+    const auto& a = s->GetVertex(isect->tri->vertIdx[0]);
+    const auto& b = s->GetVertex(isect->tri->vertIdx[1]);
+    const auto& c = s->GetVertex(isect->tri->vertIdx[2]);
+    vec2 uv = isect->bary[0] * a->uv + isect->bary[1] * b->uv + isect->bary[2] * c->uv;
+    auto baseColor = GetAlbedo(uv);
+    unique_ptr<BSDF> bsdf = make_unique<BSDF>(isect->tri->normal);
+
+    // diffuse
+    if (pbr.metallicFactor < 1.0f) {
+        Spectrum diffuseColor = baseColor * (1.0f - (float)pbr.metallicFactor);
+        if (!diffuseColor.IsBlack()) {
+            bsdf->Add(make_unique<LambertianReflection>(diffuseColor));
+        }
+    }
+    return bsdf;
 }
 
 vec4 ry::Material::GetTexture(const vec2& uv) const

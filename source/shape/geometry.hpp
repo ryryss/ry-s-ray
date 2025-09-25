@@ -38,7 +38,6 @@ struct Vertex {
     vec4 color = vec4(1.0);
     vec3 normal;
     vec2 uv;
-    int i;
 };
 
 struct Triangle {
@@ -47,7 +46,6 @@ struct Triangle {
     int material;
     uint32_t vertIdx[3];
     vec3 normal;
-    int i;
 };
 
 struct Ray {

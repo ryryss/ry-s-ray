@@ -22,6 +22,7 @@ void ry::PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4
     } else if (scrw == screenx && scrh == screeny) {
 
     } else {
+        s->ProcessCamera(screenx, screeny);
         scrw = screenx;
         scrh = screeny;
         tMax = cam.zfar;
@@ -48,31 +49,31 @@ void ry::PathRenderer::Parallel()
     auto wCnt = t.WokerCnt();
 #endif
     for (auto i = 0; i < wCnt; i++) {
-        t.Add([this, i, &t, h = scrh / wCnt]() {
+        t.Add([this, i, h = scrh / wCnt]() {
             // use the number of pixels on the y-axis to parallel cal
             for (uint16_t y = i * h; y < (i + 1) * h; y++) {
-                for (uint16_t x = 0; x < x; x++) {
+                for (uint16_t x = 0; x < scrw; x++) {
                     uint32_t num = y * scrw + x;
 #ifdef DEBUG
                     curX = x;
                     curY = y;
-                    if (x >= 200 && x <= 300 && y >= 200 && y <= 400) {
+                    // if (x >= 200 && x <= 300 && y >= 200 && y <= 400) {
                         sppBuffer[num] += vec4(PathTracing(x, y).c, 1.0);
                         pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
-                    }
+                    // }
 #else
-                    sppBuffer[num] += vec4(RayCompute(x, y).c, 1.0);
+                    sppBuffer[num] += vec4(PathTracing(x, y).c, 1.0);
                     pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
 #endif
                 }
             }
-            });
+        });
     }
     t.AsynExcute();
 
     if (auto mod = scrh % wCnt; mod) {
-        for (uint16_t y = scrh / wCnt * wCnt; y < y; y++) {
-            for (uint16_t x = 0; x < x; x++) {
+        for (uint16_t y = scrh / wCnt * wCnt; y < scrh; y++) {
+            for (uint16_t x = 0; x < scrw; x++) {
                 uint32_t num = y * scrw + x;
                 sppBuffer[num] += vec4(PathTracing(x, y).c, 1.0);
                 pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
@@ -140,10 +141,9 @@ Spectrum ry::PathRenderer::Li(const ry::Ray& r)
         Sampler s;
         float pdf;
         vec3 wi;
-        // const Material& mat = model->GetMaterial(isect.tri->material);
-        // std::unique_ptr<BSDF> b = mat.CreateBSDF(isect);
+        std::unique_ptr<BSDF> b = isect.mat->CreateBSDF(scene, &isect);
         // get wi and f from bsdf
-        Spectrum f;//b->Sample_f(-ray.d, &wi, s.Get2D(), &pdf, BSDF_ALL);
+        Spectrum f = b->Sample_f(-ray.d, &wi, s.Get2D(), &pdf, BSDF_ALL);
         if (pdf <= 0) {
             break;
         }
@@ -165,5 +165,10 @@ Spectrum ry::PathRenderer::Li(const ry::Ray& r)
 
 Spectrum ry::PathRenderer::EstimateDirect(const ry::Interaction& isect)
 {
-    return Spectrum();
+    // TODO: need random choose a light
+    // TODO: MIS
+    auto& lgt = scene->SampleOneLight();
+    Sampler s;
+    vec3 w;
+    return lgt.Sample_Li(scene, &isect, w);
 }

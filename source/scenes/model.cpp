@@ -53,16 +53,16 @@ void ry::Model::ParseNode()
 
 void ry::Model::ParseMesh(int num)
 {
-    if (num < 0) {
+    const auto& n = model.nodes[num];
+    if (n.mesh < 0) {
         return;
     }
     const auto& node = nodes[num];
-    const auto& n = model.nodes[num];
-    const auto& mesh = model.meshes[n.mesh];
     const mat4& m = node.m;
+
+    const auto& mesh = model.meshes[n.mesh];
     for (const auto& p : mesh.primitives) {
         ParsePrimitive(p, m);
-        ParseMaterial(p.material);
     }
 }
 
@@ -85,13 +85,14 @@ void ry::Model::ParseChildNode(int num)
 
 void ry::Model::ParseCamera(int num)
 {
-    if (num < 0) {
+    const auto& n = model.nodes[num];
+    if (n.camera < 0) {
         return;
     }
-    const auto& n = model.nodes[num];
     const auto& node = nodes[num];
-    const auto& c = model.cameras[n.camera];
     auto cam = ry::Camera(node);
+
+    const auto& c = model.cameras[n.camera];
     cam.type = c.type;
     if (cam.type == "perspective") {
         cam.znear = c.perspective.znear;
@@ -125,16 +126,14 @@ void ry::Model::ParseCamera(int num)
 
 void ry::Model::ParseLight(int num)
 {
-    if (num < 0) {
+    const auto& n = model.nodes[num];
+    if (n.light < 0) {
         return;
     }
-    const auto& n = model.nodes[num];
     const auto& node = nodes[num];
-
-    const auto& l = model.lights[n.light];
-
     auto light = ry::Light(node);
 
+    const auto& l = model.lights[n.light];
     light.type = l.type;
     // lgt.intensity = l.intensity;
     // lgt.color = { l.color[0], l.color[1], l.color[2] };
@@ -150,8 +149,47 @@ void ry::Model::ParseMaterial(int num)
     }
     Material mat;
     mat.SetRawPtr(&model, &model.materials[num]);
-    // In most cases, the rendering is based on triangles, so there is no need to record the material index for each vertex.
+    // In most cases, the rendering is based on triangles
+    // so there is no need to record the material index for each vertex.
     materials.push_back(mat);
+}
+
+void ry::Model::ParseEmissiveMaterial(int num, const vector<uint64_t>& ids)
+{
+    if (num < 0) {
+        return;
+    }
+    // TODO emissive texture
+    // get emissive info
+    auto& m = model.materials[num];
+    auto& pbr = m.pbrMetallicRoughness;
+    float emissiveStrength = 0.0;
+    if (auto it = m.extensions.find("KHR_materials_emissive_strength");
+        it != m.extensions.end()) {
+        const gltf::Value& val = it->second.Get("emissiveStrength");
+        emissiveStrength = static_cast<float>(val.Get<double>());
+    }
+    auto baseColorFactor = vec4(pbr.baseColorFactor[0], pbr.baseColorFactor[1],
+        pbr.baseColorFactor[2], pbr.baseColorFactor[3]);
+    // set material info
+    auto& material = materials.back();
+    material.SetEmissiveInfo(baseColorFactor, emissiveStrength);
+    // set emissive face as a area light
+    Light light;
+    light.emissiveStrength = emissiveStrength;
+    light.I = vec3(baseColorFactor);
+    light.name = "AreaLight";
+    light.triangles = ids;
+    for (auto i : ids) {
+        auto& tri = triangles[i];
+        auto a = vertices[tri.vertIdx[0]].pos;
+        auto b = vertices[tri.vertIdx[1]].pos;
+        auto c = vertices[tri.vertIdx[2]].pos;
+        vec3 e1 = b - a;
+        vec3 e2 = c - a;
+        light.area += 0.5f * length(cross(e1, e2));
+    }
+    lights.push_back(light);
 }
 
 std::vector<uint32_t> ry::Model::ParseVertIdx(const gltf::Primitive& p)
@@ -193,6 +231,7 @@ void ry::Model::ParsePrimitive(const gltf::Primitive& p, const ry::mat4& m)
     ParseTexTureCoord(p, vert);
     ParseNormal(p, vert);
     ParseVertColor(p, vert);
+    ParseMaterial(p.material);
 
     int vSize = vertices.size();
     // apply trans
@@ -200,30 +239,15 @@ void ry::Model::ParsePrimitive(const gltf::Primitive& p, const ry::mat4& m)
     for (auto i = 0; i < vert.size(); i++) {
         vert[i].pos = m * vec4(vert[i].pos, 1.0f);
         vert[i].normal = normalize(n_m * vert[i].normal);
-        vert[i].i = i + vSize;
 #ifdef DEBUG
-        cout << "vert num  " << vert[i].i << " pos = ";
+        cout << "add vert pos = ";
         PrintVec(vert[i].pos);
 #endif // DEBUG
     }
     vertices.insert(vertices.end(), vert.begin(), vert.end());
-    if (isEmissive(p.material)) {
-        // TODO emissive texture
-        auto& m = model.materials[p.material];
-        float emissiveStrength = 0.0;
-        if (auto it = m.extensions.find("KHR_materials_emissive_strength");
-            it != m.extensions.end()) {
-            const gltf::Value& val = it->second.Get("emissiveStrength");
-            emissiveStrength = static_cast<float>(val.Get<double>());
-        }
-        lights.push_back(Light());
-        lights.back().emissiveStrength = emissiveStrength;
-        lights.back().I.c[0] = m.emissiveFactor[0];
-        lights.back().I.c[1] = m.emissiveFactor[1];
-        lights.back().I.c[2] = m.emissiveFactor[2];
-        lights.back().name = "AreaLight";
-    }
-
+    
+    bool emissive = IsEmissive(p.material);
+    vector<uint64_t> emissiveTris;
     // collect tris
     for (int i = 0; i < idx.size(); i += 3) {
         triangles.push_back(Triangle());
@@ -232,21 +256,22 @@ void ry::Model::ParsePrimitive(const gltf::Primitive& p, const ry::mat4& m)
         tri.vertIdx[1] = idx[i + 1] + vSize;
         tri.vertIdx[2] = idx[i + 2] + vSize;
         tri.material = p.material;
-        tri.i = triangles.size() - 1;
         auto& a = vertices[tri.vertIdx[0]].pos;
         auto& b = vertices[tri.vertIdx[1]].pos;
         auto& c = vertices[tri.vertIdx[2]].pos;
         tri.c = (a + b + c) / 3.0f;
         tri.normal = normalize(cross(b - a, c - a));
-        if (isEmissive(p.material)) {
-            lights.back().tris.push_back(tri.i);
-            vec3 e1 = b - a;
-            vec3 e2 = c - a;
-            lights.back().area += 0.5f * length(cross(e1, e2));
+
+        if (emissive) {
+            emissiveTris.push_back(triangles.size() - 1);
         }
     }
     cout << "parse result : vertices size = " << vert.size()
         << " triangles size = " << idx.size() / 3 << endl;
+
+    if (emissive) {
+        ParseEmissiveMaterial(p.material, emissiveTris);
+    }
 }
 
 void ry::Model::ParseTexTureCoord(const tinygltf::Primitive& p, std::vector<Vertex>& vert)

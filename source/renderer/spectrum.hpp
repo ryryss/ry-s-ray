@@ -30,6 +30,12 @@ public:
     RGBSpectrum operator/(float c2) const {
         return RGBSpectrum(c / c2);
     }
+    bool IsBlack() const {
+        for (int i = 0; i < 3; ++i) {
+            if (c[i] != 0.) { return false; }
+        }
+        return true;
+    }
     ry::vec3 c;
 };
 using Spectrum = RGBSpectrum;

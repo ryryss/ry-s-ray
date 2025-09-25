@@ -1,5 +1,6 @@
 #include "scene.h"
 #include "interaction.hpp"
+#include "sample.hpp"
 using namespace ry;
 using namespace std;
 
@@ -13,7 +14,25 @@ void ry::Scene::DelModel()
 {
 }
 
-bool ry::Scene::Intersect(const Ray& r, Interaction& isect)
+void ry::Scene::ProcessCamera(uint16_t scrw, uint16_t scrh)
+{
+	for (auto& cam : cameras) {
+		if (cam.type == "perspective") {
+			cam.ymag = cam.znear * tan(cam.yfov / 2);
+			cam.xmag = cam.ymag * cam.aspectRatio;
+		} else {
+			cam.xmag = cam.ymag * scrw / scrh;
+		}
+	}
+}
+
+const Light& ry::Scene::SampleOneLight()
+{
+	Sampler s;
+	return lights[s.GetIntInRange(0, lights.size() - 1)];
+}
+
+bool ry::Scene::Intersect(const Ray& r, Interaction& isect) const
 {
 	bool hit = false;
 	float t, gu, gv;
@@ -30,11 +49,6 @@ bool ry::Scene::Intersect(const Ray& r, Interaction& isect)
 			isect.tri = &tri;
 			hit = true;
 		}
-#ifdef DEBUG
-		else {
-			isect.record.push_back(tri.i);
-		}
-#endif
 	}
 	if (hit) {
 		auto& a = vertices[isect.tri->vertIdx[0]];
@@ -51,9 +65,24 @@ bool ry::Scene::Intersect(const Ray& r, Interaction& isect)
 
 void ry::Scene::ParseModel(const Model& model)
 {
-	vertices.insert(vertices.begin(), model.vertices.begin(), model.vertices.end());
+	int matCnt = materials.size();
+	for (auto tri : model.triangles) {
+		tri.material += matCnt;
+		tri.vertIdx[0] += vertices.size();
+		tri.vertIdx[1] += vertices.size();
+		tri.vertIdx[2] += vertices.size();
+	}
 	triangles.insert(triangles.begin(), model.triangles.begin(), model.triangles.end());
+	
 	cameras.insert(cameras.begin(), model.cameras.begin(), model.cameras.end());
+	
+	for (auto light : model.lights) {
+		for (auto& i : light.triangles) {
+			i += triangles.size();
+		}
+	}
 	lights.insert(lights.begin(), model.lights.begin(), model.lights.end());
+
 	materials.insert(materials.begin(), model.materials.begin(), model.materials.end());
+	vertices.insert(vertices.begin(), model.vertices.begin(), model.vertices.end());
 }

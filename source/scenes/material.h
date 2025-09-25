@@ -1,19 +1,27 @@
 #pragma once
 #include "bsdf.h"
 namespace ry{
+class Interaction;
+class Scene;
 class Material {
 public:
 	Material() {}
 	void SetRawPtr(tinygltf::Model* pModel, tinygltf::Material* pMat);
-	inline bool IsEmissive() {
+	inline void SetEmissiveInfo(const vec4& factor, float strength) {
+		baseColorFactor = factor;
+		emissiveStrength = strength;
+	}
+	inline bool IsEmissive() const {
 	    /*(m->emissiveFactor[0] > 0.0f ||
 		 m->emissiveFactor[1] > 0.0f ||
 		 m->emissiveFactor[2] > 0.0f);*/
 		return emissiveStrength != 0.0;
 	}
-	inline float GetEmissiveStrength() { return emissiveStrength; }
+	inline float GetEmissiveStrength() const { return emissiveStrength; }
     virtual vec4 GetAlbedo(const vec2& uv) const;
 	virtual vec4 GetAlbedo() const { return baseColorFactor; };
+
+	std::unique_ptr<BSDF> CreateBSDF(const Scene* s, const Interaction* isect) const;
 private:
 	vec4 ry::Material::GetTexture(const vec2& uv) const;
 

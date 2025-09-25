@@ -10,10 +10,9 @@ struct Interaction {
     vec3 p;        // hit point
     vec3 normal;   // of hit face
 
-    Material* mat;
+    const Material* mat;
     std::unique_ptr<BSDF> b;
     // now just triangle
-    std::array<const Vertex*, 3> vts;
     const Triangle* tri;
 #ifdef DEBUG
     std::vector<uint64_t> record;

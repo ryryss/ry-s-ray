@@ -32,8 +32,10 @@ include_directories(
 )
 
 file(GLOB_RECURSE SRCS ${CMAKE_SOURCE_DIR}/source/*.cpp)
-file(GLOB_RECURSE HEADS ${CMAKE_SOURCE_DIR}/source/*.h)
-file(GLOB_RECURSE HEADS ${CMAKE_SOURCE_DIR}/source/*.hpp)
+file(GLOB_RECURSE HEADS
+    ${CMAKE_SOURCE_DIR}/source/*.h
+    ${CMAKE_SOURCE_DIR}/source/*.hpp
+)
 
 add_executable(${PROJECT_NAME}
     ${SRCS}
@@ -48,8 +50,7 @@ target_link_libraries(${PROJECT_NAME}
     OpenGL::GL
 )
 
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${HEADS})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS} ${HEADS})
 
 # after build for vs
 if(CMAKE_SYSTEM_NAME MATCHES "Windows")

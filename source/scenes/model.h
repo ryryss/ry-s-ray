@@ -10,7 +10,7 @@ class Model {
 public:
     Model(std::string file) { LoadFromFile(file); };
 private:
-    inline bool isEmissive(int i) {
+    inline bool IsEmissive(int i) {
         return (!(model.materials.size() <= 0) &&
                (model.materials[i].emissiveFactor[0] > 0.0f ||
                 model.materials[i].emissiveFactor[1] > 0.0f ||
@@ -24,6 +24,7 @@ private:
     void ParseCamera(int num);
     void ParseLight(int num);
     void ParseMaterial(int num);
+    void ParseEmissiveMaterial(int num, const std::vector<uint64_t>& ids);
 
     std::vector<uint32_t> ParseVertIdx(const tinygltf::Primitive& p);
     void ParsePrimitive(const tinygltf::Primitive& p, const mat4& m);

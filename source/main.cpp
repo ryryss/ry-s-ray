@@ -17,7 +17,6 @@ int main(int argc, char* argv[]) {
     Scene scene;
     scene.AddModel(input);
     auto& d = Display::GetInstance();
-    // model.ProcessCamera({d.getWindowWidth(), d.getWindowHeight()});
 
     bool keepRender = true;
     PathRenderer renderer;
