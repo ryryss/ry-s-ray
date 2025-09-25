@@ -1,6 +1,4 @@
 #include "light.h"
-#include "loader.h"
-
 using namespace ry;
 using namespace std;
 using namespace glm;
@@ -8,6 +6,7 @@ using namespace glm;
 Spectrum Light::Sample_Li(const Sampler& s, const Interaction* isect, vec3& wi)
 {
     Spectrum Li(0.);
+    /*
     auto& model = Loader::GetInstance();
     auto& ts = model.GetTriangles();
     // sample light
@@ -40,6 +39,6 @@ Spectrum Light::Sample_Li(const Sampler& s, const Interaction* isect, vec3& wi)
     float pdf = 1.0f / area;
     Spectrum Le = I.c * emissiveStrength;// / (Pi * lgt.area);
     Spectrum f = kd / Pi;
-    Li += f * Le * cosp * cosl / (dist2 * pdf);
+    Li += f * Le * cosp * cosl / (dist2 * pdf);*/
     return Li;
 }

@@ -24,16 +24,16 @@ MACRO(GET_SUB_DIR_WITH_RECURSIVE src res)
     SET(${res} ${dir_list})
 ENDMACRO()
 
-GET_SUB_DIR_WITH_RECURSIVE("${CMAKE_SOURCE_DIR}/src" all_dir)
-GET_SUB_DIR_WITH_RECURSIVE("${CMAKE_SOURCE_DIR}/include" all_dir)
+GET_SUB_DIR_WITH_RECURSIVE("${CMAKE_SOURCE_DIR}/source" all_dir)
     
 include_directories(
     ${all_dir}
     ${PROJECT_SOURCE_DIR}/_deps
 )
 
-file(GLOB_RECURSE SRCS ${CMAKE_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE HEADS ${CMAKE_SOURCE_DIR}/include/*.h)
+file(GLOB_RECURSE SRCS ${CMAKE_SOURCE_DIR}/source/*.cpp)
+file(GLOB_RECURSE HEADS ${CMAKE_SOURCE_DIR}/source/*.h)
+file(GLOB_RECURSE HEADS ${CMAKE_SOURCE_DIR}/source/*.hpp)
 
 add_executable(${PROJECT_NAME}
     ${SRCS}

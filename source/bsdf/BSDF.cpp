@@ -1,4 +1,4 @@
-#include "BSDF.h"
+#include "bsdf.h"
 using namespace ry;
 using namespace std;
 vec2 ConcentricSampleDisk(const vec2& u) {

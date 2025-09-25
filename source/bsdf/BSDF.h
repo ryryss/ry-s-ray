@@ -1,7 +1,7 @@
-#ifndef	BSDF_H
-#define BSDF_H
-#include "pub.h"
+#pragma once
+#include "spectrum.hpp"
 
+namespace ry {
 enum BxDFType {
     BSDF_REFLECTION = 1 << 0,
     BSDF_TRANSMISSION = 1 << 1,
@@ -11,39 +11,6 @@ enum BxDFType {
     BSDF_ALL = BSDF_DIFFUSE | BSDF_GLOSSY | BSDF_SPECULAR | BSDF_REFLECTION |
     BSDF_TRANSMISSION,
 };
-
-class RGBSpectrum {
-public:
-    RGBSpectrum(float v = 0.f) : c{ v } {}
-    RGBSpectrum(ry::vec3 v) : c(v) {}
-
-    RGBSpectrum& operator+=(const RGBSpectrum& c2) {
-        c += c2.c;
-        return *this;
-    }
-    RGBSpectrum& operator+=(const ry::vec3& c2) {
-        c += c2;
-        return *this;
-    }
-    RGBSpectrum operator*(const float c2) const {
-        return RGBSpectrum(c * c2);
-    }
-    RGBSpectrum operator*(const RGBSpectrum& c2) const {
-        return RGBSpectrum(c * c2.c);
-    }
-    RGBSpectrum& operator*=(const RGBSpectrum& c2) {
-        c *= c2.c;
-        return *this;
-    }
-    RGBSpectrum operator+(const RGBSpectrum& c2) const {
-        return RGBSpectrum(c + c2.c);
-    }
-    RGBSpectrum operator/(float c2) const {
-        return RGBSpectrum(c / c2);
-    }
-    ry::vec3 c;
-};
-using Spectrum = RGBSpectrum;
 
 class BxDF {
 public:
@@ -98,4 +65,4 @@ private:
     std::vector<std::unique_ptr<BxDF>> bxdfs;
     ry::vec3 n, b, t;
 };
-#endif
+}

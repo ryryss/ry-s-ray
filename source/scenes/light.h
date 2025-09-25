@@ -1,10 +1,9 @@
-#ifndef LIGHT_H
-#define LIGHT_H
-#include "pub.h"
-#include "BSDF.h"
-
+#pragma once
+#include "node.hpp"
+#include "interaction.hpp"
+#include "sample.hpp"
 namespace ry{
-class Light : public ry::Node {
+class Light : public Node {
 public:
     Light() {};
     Light(const ry::Node& other) : ry::Node(other) {};
@@ -16,4 +15,3 @@ public:
     std::vector<uint64_t> tris;
 };
 }
-#endif

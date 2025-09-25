@@ -1,0 +1,48 @@
+#pragma once
+#include "geometry.hpp"
+#include "light.h"
+#include "material.h"
+namespace gltf = tinygltf;
+namespace ry {
+class Scene;
+// tinygltf wrapper
+class Model {
+public:
+    Model(std::string file) { LoadFromFile(file); };
+private:
+    inline bool isEmissive(int i) {
+        return (!(model.materials.size() <= 0) &&
+               (model.materials[i].emissiveFactor[0] > 0.0f ||
+                model.materials[i].emissiveFactor[1] > 0.0f ||
+                model.materials[i].emissiveFactor[2] > 0.0f));
+    }
+
+	bool LoadFromFile(const std::string& file);
+    void ParseNode();
+    void ParseMesh(int num);
+    void ParseChildNode(int num);
+    void ParseCamera(int num);
+    void ParseLight(int num);
+    void ParseMaterial(int num);
+
+    std::vector<uint32_t> ParseVertIdx(const tinygltf::Primitive& p);
+    void ParsePrimitive(const tinygltf::Primitive& p, const mat4& m);
+    void ParseTexTureCoord(const tinygltf::Primitive& p, std::vector<Vertex>& vert);
+    void ParseNormal(const tinygltf::Primitive& p, std::vector<Vertex>& vert);
+    void ParseVertColor(const tinygltf::Primitive& p, std::vector<Vertex>& vert);
+    void ParsePosition(const tinygltf::Primitive& p, std::vector<Vertex>& vert);
+
+    mat4 GetNodeMat(int num);
+    std::vector <ry::Light> lights;
+    std::vector <Camera> cameras;
+    std::vector <ry::Material> materials;
+    // std::vector <ry::Material> mats;
+	gltf::Model model;
+    std::vector<Node> nodes;
+    std::vector<uint32_t> roots;
+    std::vector<Vertex> vertices;
+    std::vector<Triangle> triangles;
+
+    friend class Scene;
+};
+}

@@ -1,18 +1,14 @@
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "loader.h"
-#include "algorithm.h"
-#include "BVH.h"
-using namespace std;
-using namespace tinygltf;
+#include "model.h"
 using namespace ry;
+using namespace std;
 using namespace glm;
-using namespace alg;
 
-bool Loader::LoadFromFile(const string& file)
+bool Model::LoadFromFile(const string& file)
 {
-    TinyGLTF loader;
+    tinygltf::TinyGLTF loader;
     string err;
     string warn;
 
@@ -21,110 +17,179 @@ bool Loader::LoadFromFile(const string& file)
         cout << "Warn: " << warn << endl;
         cerr << "Err: " << err << endl;
         cerr << "Failed to load GLB: " << file << endl;
+        throw ("File Error");
         return false;
     }
     ParseNode();
     for (int i = 0; i < nodes.size(); i++) {
         const auto& n = model.nodes[i];
         const auto& node = nodes[i];
-        if (n.mesh >= 0) {
-            ParseMesh(i);
-        }
-        if (n.camera >= 0) {
-            ParseCam(i);
-        }
-        if (n.light >= 0) {
-            ParseLgt(i);
-        }
+        ParseMesh(i);
+        ParseCamera(i);
+        ParseLight(i);
     }
-
-    if (!model.cameras.size()) {
-        ParseCam(-1);
-    }
-    if (!lgts.size()) {
-        ParseLgt(-1);
-    }
-    bvh = make_shared<BVH>(triangles.size());
     return true;
 }
 
-void Loader::ParseCam(int num)
+void ry::Model::ParseNode()
 {
-    if (model.cameras.size() > 1) {
-        throw("now just sup one cam");
+    if (model.scenes.size() > 1) {
+        throw ("now just sup 1 cam 1 scene");
     }
 
-    if (num < 0) {
-        cout << "use default camera" << endl;
-        cam.type = "orthographic";
-        cam.znear = 0.001;
-        cam.zfar = 100;
-        cam.xmag = 3.65;
-        cam.ymag = 2.05;
-        cam.m = mat4(1.0);
-    } else {
-        const auto& n = model.nodes[num];
-        const auto& node = nodes[num];
-        const auto& c = model.cameras[n.camera];
-        cam = ry::Camera(node);
-        cam.type = c.type;
-        if (cam.type == "perspective") {
-            cam.znear = c.perspective.znear;
-            cam.zfar = c.perspective.zfar;
-            cam.yfov = c.perspective.yfov;
-            cam.aspectRatio = c.perspective.aspectRatio;
-        } else if (c.type == "orthographic") {
-            cam.znear = c.orthographic.znear;
-            cam.zfar = c.orthographic.zfar;
-            cam.xmag = c.orthographic.xmag;
-            cam.ymag = c.orthographic.ymag;
-        } else {
-            throw("cam info error");
+    nodes.resize(model.nodes.size());
+    for (const auto& s : model.scenes) {
+        for (const auto& i : s.nodes) {
+            const auto& n = model.nodes[i]; // root node
+            roots.push_back(i);
+            auto& p = nodes[i];        // parent and root
+            p.name = n.name;
+            p.i = i;
+            p.m = GetNodeMat(i) * p.m; // root's mat is root
+            ParseChildNode(i);         // apply mat to all child node
         }
     }
+}
+
+void ry::Model::ParseMesh(int num)
+{
+    if (num < 0) {
+        return;
+    }
+    const auto& node = nodes[num];
+    const auto& n = model.nodes[num];
+    const auto& mesh = model.meshes[n.mesh];
+    const mat4& m = node.m;
+    for (const auto& p : mesh.primitives) {
+        ParsePrimitive(p, m);
+        ParseMaterial(p.material);
+    }
+}
+
+void ry::Model::ParseChildNode(int num)
+{
+    const auto& n = model.nodes[num];
+    auto& p = nodes[num]; // parent
+    p.c.resize(n.children.size());
+    for (int i = 0; i < n.children.size(); i++) {
+        int c_num = n.children[i];
+        p.c[i] = c_num;
+        auto& c = nodes[c_num]; // child node
+        c.name = model.nodes[c_num].name;
+        c.i = num;
+        auto trans = GetNodeMat(c_num);
+        c.m = p.m * trans * c.m; // apply mat
+        ParseChildNode(c_num);
+    }
+}
+
+void ry::Model::ParseCamera(int num)
+{
+    if (num < 0) {
+        return;
+    }
+    const auto& n = model.nodes[num];
+    const auto& node = nodes[num];
+    const auto& c = model.cameras[n.camera];
+    auto cam = ry::Camera(node);
+    cam.type = c.type;
+    if (cam.type == "perspective") {
+        cam.znear = c.perspective.znear;
+        cam.zfar = c.perspective.zfar;
+        cam.yfov = c.perspective.yfov;
+        cam.aspectRatio = c.perspective.aspectRatio;
+    } else if (c.type == "orthographic") {
+        cam.znear = c.orthographic.znear;
+        cam.zfar = c.orthographic.zfar;
+        cam.xmag = c.orthographic.xmag;
+        cam.ymag = c.orthographic.ymag;
+    } else {
+        throw("cam info error");
+    }
+
     // use camera world coordinate to direct get base vector
     cam.e = vec3(cam.m[3]);
     cam.w = -normalize(vec3(cam.m[2]));
     cam.v = normalize(cam.m[1]);
     cam.u = normalize(cam.m[0]);
     /*
-       some book like¡¶Ray Tracing in One Weekend¡·will use : 
+       some book like¡¶Ray Tracing in One Weekend¡·will use :
        cam.w = normalize(cam.e - vec3(0, 0, -1));
        cam.u = normalize(cross(cam.w, vec3(0, 1, 0)));
        cam.v = cross(cam.u, cam.w);
        in this program, will cause errors
     */
+    cam.i = cameras.size();
+    cameras.push_back(cam);
 }
 
-void Loader::ParseLgt(int num)
+void ry::Model::ParseLight(int num)
 {
-    if (model.lights.size() > 1) {
-        throw("now just sup one light");
-    }
-
     if (num < 0) {
-        cout << "use default light" << endl;
-        lgts.push_back(ry::Light());
-        lgts.back().m = translate(mat4(1.0), vec3(-5.0f, 10.0f, -5.0f));
-    } else {
-        const auto& n = model.nodes[num];
-        const auto& node = nodes[num];
-
-        const auto& l = model.lights[n.light];
-        lgts.push_back(ry::Light(node));
-        lgts.back().type = l.type;
-        // lgt.intensity = l.intensity;
-        // lgt.color = { l.color[0], l.color[1], l.color[2] };
-        if (lgts.back().type == "") {}
+        return;
     }
+    const auto& n = model.nodes[num];
+    const auto& node = nodes[num];
+
+    const auto& l = model.lights[n.light];
+
+    auto light = ry::Light(node);
+
+    light.type = l.type;
+    // lgt.intensity = l.intensity;
+    // lgt.color = { l.color[0], l.color[1], l.color[2] };
+    if (light.type == "") {} // TODO : need process point light
+    light.i = lights.size();
+    lights.push_back(light);
 }
 
-void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
+void ry::Model::ParseMaterial(int num)
+{
+    if (num < 0) {
+        return;
+    }
+    Material mat;
+    mat.SetRawPtr(&model, &model.materials[num]);
+    // In most cases, the rendering is based on triangles, so there is no need to record the material index for each vertex.
+    materials.push_back(mat);
+}
+
+std::vector<uint32_t> ry::Model::ParseVertIdx(const gltf::Primitive& p)
+{
+    vector<uint32_t> res;
+    if (p.indices < 0) {
+        return res;
+    }
+    const auto& acc = model.accessors[p.indices];
+    const auto& v = model.bufferViews[acc.bufferView];
+    const auto& b = model.buffers[v.buffer];
+    const void* data = &b.data[v.byteOffset + acc.byteOffset];
+    res.resize(acc.count);
+
+    switch (acc.componentType) {
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: {
+        const uint16_t* buf = reinterpret_cast<const uint16_t*>(data);
+        for (size_t i = 0; i < acc.count; ++i)
+            res[i] = static_cast<unsigned int>(buf[i]);
+        break;
+    }
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: {
+        const uint32_t* buf = reinterpret_cast<const uint32_t*>(data);
+        for (size_t i = 0; i < acc.count; ++i)
+            res[i] = buf[i];
+        break;
+    }
+    default:
+        cerr << "Unsupported index component type." << endl;
+    }
+    return res;
+}
+
+void ry::Model::ParsePrimitive(const gltf::Primitive& p, const ry::mat4& m)
 {
     const auto idx = move(ParseVertIdx(p));
     std::vector<ry::Vertex> vert;
     ParsePosition(p, vert);
-    ParseMaterial(p, vert);
     ParseTexTureCoord(p, vert);
     ParseNormal(p, vert);
     ParseVertColor(p, vert);
@@ -148,19 +213,19 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
         float emissiveStrength = 0.0;
         if (auto it = m.extensions.find("KHR_materials_emissive_strength");
             it != m.extensions.end()) {
-            const tinygltf::Value& val = it->second.Get("emissiveStrength");
+            const gltf::Value& val = it->second.Get("emissiveStrength");
             emissiveStrength = static_cast<float>(val.Get<double>());
         }
-        lgts.push_back(ry::Light());
-        lgts.back().emissiveStrength = emissiveStrength;
-        lgts.back().I.c[0] = m.emissiveFactor[0];
-        lgts.back().I.c[1] = m.emissiveFactor[1];
-        lgts.back().I.c[2] = m.emissiveFactor[2];
-        lgts.back().name = "AreaLight";
+        lights.push_back(Light());
+        lights.back().emissiveStrength = emissiveStrength;
+        lights.back().I.c[0] = m.emissiveFactor[0];
+        lights.back().I.c[1] = m.emissiveFactor[1];
+        lights.back().I.c[2] = m.emissiveFactor[2];
+        lights.back().name = "AreaLight";
     }
 
     // collect tris
-    for (int i = 0; i < idx.size(); i+=3) {
+    for (int i = 0; i < idx.size(); i += 3) {
         triangles.push_back(Triangle());
         auto& tri = triangles.back();
         tri.vertIdx[0] = idx[i + 0] + vSize;
@@ -174,48 +239,17 @@ void Loader::ParsePrimitive(const Primitive& p, const mat4& m)
         tri.c = (a + b + c) / 3.0f;
         tri.normal = normalize(cross(b - a, c - a));
         if (isEmissive(p.material)) {
-            lgts.back().tris.push_back(tri.i);
+            lights.back().tris.push_back(tri.i);
             vec3 e1 = b - a;
             vec3 e2 = c - a;
-            lgts.back().area += 0.5f * length(cross(e1, e2));    
+            lights.back().area += 0.5f * length(cross(e1, e2));
         }
     }
-    cout << "parse result : vertices size = "  << vert.size()
+    cout << "parse result : vertices size = " << vert.size()
         << " triangles size = " << idx.size() / 3 << endl;
 }
 
-vector<uint32_t> Loader::ParseVertIdx(const Primitive& p)
-{
-    vector<uint32_t> res;
-    if (p.indices < 0) {
-        return res;
-    }
-    const auto& acc = model.accessors[p.indices];
-    const auto& v = model.bufferViews[acc.bufferView];
-    const auto& b = model.buffers[v.buffer];
-    const void* data = &b.data[v.byteOffset + acc.byteOffset];
-    res.resize(acc.count);
-
-    switch (acc.componentType) {
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: {
-            const uint16_t* buf = reinterpret_cast<const uint16_t*>(data);
-            for (size_t i = 0; i < acc.count; ++i)
-                res[i] = static_cast<unsigned int>(buf[i]);
-            break;
-        }
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: {
-            const uint32_t* buf = reinterpret_cast<const uint32_t*>(data);
-            for (size_t i = 0; i < acc.count; ++i)
-                res[i] = buf[i];
-            break;
-        }
-        default:
-            cerr << "Unsupported index component type." << endl;
-    }
-    return res;
-}
-
-void Loader::ParseTexTureCoord(const Primitive& p, vector<Vertex>& vert)
+void ry::Model::ParseTexTureCoord(const tinygltf::Primitive& p, std::vector<Vertex>& vert)
 {
     // https://github.khronos.org/glTF-Tutorials/gltfTutorial/gltfTutorial_013_SimpleTexture.html
     // TODO: mult texturescoord sup
@@ -265,18 +299,7 @@ void Loader::ParseTexTureCoord(const Primitive& p, vector<Vertex>& vert)
     }
 }
 
-void Loader::ParseMaterial(const tinygltf::Primitive& p, std::vector<ry::Vertex>& vert)
-{
-    int mIdx = p.material;
-    if (mIdx < 0) {
-        return;
-    }
-    auto& mat = mats[mIdx];
-    mat.SetRawPtr(&model, &model.materials[mIdx]);
-    // In most cases, the rendering is based on triangles, so there is no need to record the material index for each vertex.
-}
-
-void Loader::ParseNormal(const Primitive& p, vector<Vertex>& vert)
+void ry::Model::ParseNormal(const tinygltf::Primitive& p, std::vector<Vertex>& vert)
 {
     auto it = p.attributes.find("NORMAL");
     if (it == p.attributes.end()) {
@@ -310,7 +333,7 @@ void Loader::ParseNormal(const Primitive& p, vector<Vertex>& vert)
     }
 }
 
-void Loader::ParseVertColor(const Primitive& p, vector<Vertex>& vert)
+void ry::Model::ParseVertColor(const tinygltf::Primitive& p, std::vector<Vertex>& vert)
 {
     auto it = p.attributes.find("COLOR_0");
     if (it == p.attributes.end()) {
@@ -364,7 +387,7 @@ void Loader::ParseVertColor(const Primitive& p, vector<Vertex>& vert)
     }
 }
 
-void Loader::ParsePosition(const Primitive& p, vector<Vertex>& vert)
+void ry::Model::ParsePosition(const tinygltf::Primitive& p, std::vector<Vertex>& vert)
 {
     auto it = p.attributes.find("POSITION");
     if (it == p.attributes.end()) {
@@ -399,61 +422,12 @@ void Loader::ParsePosition(const Primitive& p, vector<Vertex>& vert)
     }
 }
 
-void Loader::ParseNode()
+mat4 Model::GetNodeMat(int num)
 {
-    if (model.scenes.size() > 1) {
-        throw ("now just sup 1 cam 1 scene");
+    mat4 t = mat4(1.0f);
+    if (num < 0) {
+        return t;
     }
-
-    nodes.resize(model.nodes.size());
-    mats.resize(model.materials.size());
-    for (const auto& s : model.scenes) {
-        for (const auto& i : s.nodes) {
-            const auto& n = model.nodes[i]; // root node
-            roots.push_back(i);
-            auto& p = nodes[i];        // parent and root
-            p.name = n.name;
-            p.num = i;
-            p.m = GetNodeMat(i) * p.m; // root's mat is root
-            ParseChildNode(i);         // apply mat to all child node
-        }
-    }
-}
-
-void Loader::ParseMesh(int num)
-{
-    const auto& node = nodes[num];
-    const auto& n = model.nodes[num];
-    const auto& mesh = model.meshes[n.mesh];
-    const mat4& m = node.m;
-    for (const auto& p : mesh.primitives) {
-        ParsePrimitive(p, m);
-    }
-}
-
-void Loader::ParseChildNode(int num)
-{
-    const auto& n = model.nodes[num];
-    auto& p = nodes[num]; // parent
-    p.c.resize(n.children.size());
-    for (int i = 0; i < n.children.size(); i++) {
-        int c_num = n.children[i];
-        p.c[i] = c_num;
-        auto& c = nodes[c_num]; // child node
-        c.name = model.nodes[c_num].name;
-        c.num = num;
-        auto trans = GetNodeMat(c_num);
-        c.m = p.m * trans * c.m; // apply mat
-        ParseChildNode(c_num);
-    }
-}
-
-mat4 Loader::GetNodeMat(int num)
-{
-     mat4 t = mat4(1.0f);
-     if (num < 0) {
-         return t;
-     }
     const auto& n = model.nodes[num];
     if (n.matrix.size() == 16) {
         t = make_mat4(n.matrix.data());
@@ -461,70 +435,16 @@ mat4 Loader::GetNodeMat(int num)
     } else if (n.translation.empty() && n.rotation.empty() && n.scale.empty()) {
         return t;
     } else {
-        mat4 T = n.translation.empty() ? glm::mat4(1.0f): 
-            translate(glm::mat4(1.0f), { n.translation[0], n.translation[1], n.translation[2]});
-        
-        mat4 R = n.rotation.empty() ? glm::mat4(1.0f) : 
+        mat4 T = n.translation.empty() ? glm::mat4(1.0f) :
+            translate(glm::mat4(1.0f), { n.translation[0], n.translation[1], n.translation[2] });
+
+        mat4 R = n.rotation.empty() ? glm::mat4(1.0f) :
             toMat4(quat((n.rotation[3]), (n.rotation[0]), (n.rotation[1]), (n.rotation[2])));
 
-        mat4 S = n.scale.empty() ? glm::mat4(1.0f) : 
+        mat4 S = n.scale.empty() ? glm::mat4(1.0f) :
             glm::scale(glm::mat4(1.0f), { n.scale[0], n.scale[1], n.scale[2] });
 
         t = T * R * S;
     }
     return t;
-}
-
-void Loader::ProcessCamera(const Screen& scr)
-{
-    if (cam.type == "perspective") {
-        cam.ymag = cam.znear * tan(cam.yfov / 2);
-        cam.xmag = cam.ymag * cam.aspectRatio;
-    } else {
-        cam.xmag = cam.ymag * scr.w / scr.h;
-    }
-    tMin = cam.znear;
-    tMax = cam.zfar;
-}
-
-bool Interaction::Intersect(const Ray& r, float tMin, float tMax)
-{
-    vector<uint64_t> tIdxs;
-    auto bvh = Loader::GetInstance().GetBvh();
-    bvh->TraverseBVH(tIdxs, r, bvh->root);
-    auto& ts = Loader::GetInstance().GetTriangles();
-    bool hit = false;
-    float t, gu, gv;
-    this->tMin = tMax;
-    for (auto& i : tIdxs) {
-        auto vts = Loader::GetInstance().GetTriVts(i);
-        if (alg::Moller_Trumbore(r.o, r.d, vts[0]->pos, vts[1]->pos, vts[2]->pos, t, gu, gv) &&
-            t > tMin && t < this->tMin && t < tMax) {
-            this->tMin = t;
-            this->tri = &ts[i];
-            this->bary = { 1 - gu - gv, gu, gv };
-            this->p = r.o + t * r.d;
-            this->vts = vts;
-            hit = true;
-        } 
-#ifdef DEBUG
-        else {
-            record.push_back(i);
-        }
-#endif
-    }
-#ifdef DEBUG
-    /*cout << "no hit list = ";
-    for (auto i : record) {
-         cout << i << " ";
-    }
-    cout << endl;*/
-#endif
-    if (hit) {
-        auto vts = Loader::GetInstance().GetTriVts(*tri);
-        normal = normalize(bary[0] * vts[0]->normal
-            + bary[1] * vts[1]->normal + bary[2] * vts[2]->normal);
-    }
-
-    return hit;
 }
