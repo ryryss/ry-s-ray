@@ -10,7 +10,7 @@ public:
     Light() {};
     Light(const Node& other) : Node(other) {};
     Spectrum Sample_Li(const Scene* scene, const Interaction* isect, vec3& wi) const;
-    vec3 SamplePoint(const Scene* scene) const;
+    uint16_t SamplePoint(const Scene* scene, vec3& pos, vec3& n) const;
     float area = 0.0f;
     float emissiveStrength;
     Spectrum I; // or emissiveFactor

@@ -135,7 +135,7 @@ Spectrum PathRenderer::Li(const Ray& r)
         if (bounce == 0) {
             // process specular 
         }
-        return Lo += beta * EstimateDirect(isect);
+        Lo += beta * EstimateDirect(isect);
 
         // indirect
         Sampler s;
@@ -165,7 +165,6 @@ Spectrum PathRenderer::Li(const Ray& r)
 
 Spectrum PathRenderer::EstimateDirect(const Interaction& isect)
 {
-    // TODO: need random choose a light
     // TODO: MIS
     auto& lgt = scene->SampleOneLight();
     Sampler s;

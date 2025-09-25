@@ -7,8 +7,9 @@ using namespace glm;
 Spectrum Light::Sample_Li(const Scene* scene, const Interaction* isect, vec3& wi) const
 {
     Spectrum Li(0.);
-
-    auto samplePoint = SamplePoint(scene);
+    vec3 samplePoint;
+    vec3 lightNormal;
+    SamplePoint(scene, samplePoint, lightNormal);
     wi = samplePoint - isect->p;
     float dist2 = glm::max(dot(wi, wi), 0.0f);
     wi = normalize(wi);
@@ -27,8 +28,7 @@ Spectrum Light::Sample_Li(const Scene* scene, const Interaction* isect, vec3& wi
     vec2 uv = isect->bary[0] * a->uv + isect->bary[1] * b->uv + isect->bary[2] * c->uv;
     Spectrum kd = mat->GetAlbedo(uv);
 
-    vec3 nl = isect->tri->normal;
-    float cosl = glm::max(0.f, dot(nl, -wi));
+    float cosl = glm::max(0.f, dot(lightNormal, -wi));
     float cosp = glm::max(0.f, dot(isect->normal, wi));
     float pdf = 1.0f / area; // uniform surface sampling
     Spectrum Le = I.c * emissiveStrength;// / (Pi * lgt.area);
@@ -37,10 +37,11 @@ Spectrum Light::Sample_Li(const Scene* scene, const Interaction* isect, vec3& wi
     return Li;
 }
 
-vec3 Light::SamplePoint(const Scene* scene) const
+uint16_t Light::SamplePoint(const Scene* scene, vec3& pos, vec3& n) const
 {
     // sample a point from light, default : area light
     Sampler s;
+    uint16_t i = s.GetIntInRange(0, triangles.size() - 1);
     auto triangle = scene->GetTriangle(s.GetIntInRange(0, triangles.size() - 1));
     
     float u = s.Get1D();
@@ -53,5 +54,7 @@ vec3 Light::SamplePoint(const Scene* scene) const
     const auto& b = scene->GetVertex(triangle->vertIdx[1]);
     const auto& c = scene->GetVertex(triangle->vertIdx[2]);
 
-    return (1 - u - v) * a->pos + u * b->pos + v * c->pos;
+    pos = (1 - u - v) * a->pos + u * b->pos + v * c->pos;
+    n = triangle->normal;
+    return i;
 }
