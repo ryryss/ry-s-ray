@@ -182,9 +182,9 @@ void Model::ParseEmissiveMaterial(int num, const vector<uint64_t>& ids)
     light.triangles = ids;
     for (auto i : ids) {
         auto& tri = triangles[i];
-        auto a = vertices[tri.vertIdx[0]].pos;
-        auto b = vertices[tri.vertIdx[1]].pos;
-        auto c = vertices[tri.vertIdx[2]].pos;
+        auto& a = vertices[tri.vertIdx[0]].pos;
+        auto& b = vertices[tri.vertIdx[1]].pos;
+        auto& c = vertices[tri.vertIdx[2]].pos;
         vec3 e1 = b - a;
         vec3 e2 = c - a;
         light.area += 0.5f * length(cross(e1, e2));
@@ -267,7 +267,7 @@ void Model::ParsePrimitive(const gltf::Primitive& p, const mat4& m)
         }
     }
     cout << "parse result : vertices size = " << vert.size()
-        << " triangles size = " << idx.size() / 3 << endl;
+         << " triangles size = " << idx.size() / 3 << endl;
 
     if (emissive) {
         ParseEmissiveMaterial(p.material, emissiveTris);

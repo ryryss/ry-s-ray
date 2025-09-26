@@ -16,7 +16,7 @@ Spectrum Light::Sample_Li(const Scene* scene, const Interaction* isect, vec3& wi
 
     Interaction shadowTest;
     shadowTest.tMin = isect->tMin;
-    shadowTest.tMax = length(samplePoint - isect->p);
+    shadowTest.tMax = length(samplePoint - isect->p) - ShadowEpsilon;
     if (scene->Intersect(Ray{ isect->p, wi }, shadowTest)) {
         return Spectrum(0.); // if hit any obeject (include emissive) = shadow
     }
@@ -42,7 +42,7 @@ uint16_t Light::SamplePoint(const Scene* scene, vec3& pos, vec3& n) const
     // sample a point from light, default : area light
     Sampler s;
     uint16_t i = s.GetIntInRange(0, triangles.size() - 1);
-    auto triangle = scene->GetTriangle(s.GetIntInRange(0, triangles.size() - 1));
+    const auto& triangle = scene->GetTriangle(triangles[i]);
     
     float u = s.Get1D();
     float v = s.Get1D();
