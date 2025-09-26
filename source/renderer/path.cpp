@@ -93,9 +93,10 @@ void PathRenderer::Parallel()
 
 Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
 {
-    vec3 o, d;
     auto& cam = scene->GetActiveCamera();
-    float uu = -cam.xmag + 2 * cam.xmag * (x + 0.5) / scrw;
+    vec3 o, d;
+    // Geometric Method
+    /*float uu = -cam.xmag + 2 * cam.xmag * (x + 0.5) / scrw;
     float vv = -cam.ymag + 2 * cam.ymag * (y + 0.5) / scrh;
     if (cam.type == "perspective") {
         o = cam.e;
@@ -103,7 +104,19 @@ Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
     } else {
         o = cam.e + cam.u * uu + cam.v * vv;
         d = cam.w;
-    }
+    }*/
+
+    // Inverse Projection Method
+    // display -> NDC -> clip -> camera -> world
+    Sampler s;
+    vec2 ndc = (vec2(x, y) + s.Get2D());
+    ndc = 2.f * ndc / vec2(scrw, scrh) - 1.f;
+    vec4 clip { ndc, 0, 1 };
+    vec4 camSpace = cam.clipToCamera * clip;
+    // now in camera coordinates
+    vec3 dir = cam.m * camSpace /* - vec3(0, 0, 0) */;
+    o = cam.e;
+    d = normalize(dir - o);
     return { o, d };
 }
 

@@ -23,6 +23,10 @@ void Scene::ProcessCamera(uint16_t scrw, uint16_t scrh)
 		} else {
 			cam.xmag = cam.ymag * scrw / scrh;
 		}
+		cam.clipToCamera = glm::inverse(glm::perspective(
+			(float)glm::radians(cam.yfov),
+			(float)cam.aspectRatio, cam.znear, cam.zfar
+		));
 	}
 }
 

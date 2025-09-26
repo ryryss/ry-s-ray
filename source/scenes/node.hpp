@@ -24,6 +24,7 @@ struct Camera : public Node {
     vec3 v; // cam base up
     vec3 u; // cam base right
 
+    mat4 clipToCamera;
     Camera() {};
     Camera(const Node& other) : Node(other) {};
 };

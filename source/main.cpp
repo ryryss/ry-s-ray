@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
     t.detach();
 
     while (1) {
-        d.UpdateFrame();
+        d.UpdateFrame(); // present to display
         Sleep(50);
     }
     keepRender = false;
