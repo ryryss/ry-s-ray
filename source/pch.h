@@ -18,6 +18,7 @@
 #include <queue>
 
 static float ShadowEpsilon = 1e-5;
+static float FloatEpsilon = 1e-6;
 static float Pi = 3.14159265358979323846;
 static float InvPi = 0.31830988618379067154;
 static float Inv2Pi = 0.15915494309189533577;

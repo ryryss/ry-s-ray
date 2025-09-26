@@ -31,18 +31,18 @@ unique_ptr<BSDF> Material::CreateBSDF(const Scene* s, const Interaction* isect) 
     unique_ptr<BSDF> bsdf = make_unique<BSDF>(isect->tri->normal);
 
     // diffuse
-    if (pbr.metallicFactor < 1.0f) {
+    if (pbr.metallicFactor < 1.0f - FloatEpsilon) {
         Spectrum diffuseColor = baseColor * (1.0f - (float)pbr.metallicFactor);
         if (!diffuseColor.IsBlack()) {
             bsdf->Add(make_unique<LambertianReflection>(diffuseColor));
         }
+    } else {
+        // specular GGX/Trowbridge-Reitz
+        // Spectrum F0 = glm::mix(Spectrum(0.04f).c, baseColor.c, pbr.metallicFactor);
+        auto distrib = make_shared<TrowbridgeReitzDistribution>(pbr.roughnessFactor, pbr.roughnessFactor);
+        auto fresnel = make_shared<FresnelNoOp>();
+        bsdf->Add(make_unique<MicrofacetReflection>(vec3(baseColor), distrib, fresnel));
     }
-
-    // specular GGX/Trowbridge-Reitz
-    // Spectrum F0 = glm::mix(Spectrum(0.04f).c, baseColor.c, pbr.metallicFactor);
-    auto distrib = make_shared<TrowbridgeReitzDistribution>(pbr.roughnessFactor, pbr.roughnessFactor);
-    auto fresnel = make_shared<FresnelNoOp>();
-    bsdf->Add(make_unique<MicrofacetReflection>(vec3(baseColor), distrib, fresnel));
     return bsdf;
 }
 

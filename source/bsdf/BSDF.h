@@ -131,6 +131,15 @@ public:
     Spectrum Evaluate(float cosI) const { return Spectrum(1.); }
 };
 
+class FresnelDielectric : public Fresnel {
+public:
+    // FresnelDielectric Public Methods
+    Spectrum Evaluate(float cosThetaI) const;
+    FresnelDielectric(float etaI, float etaT) : etaI(etaI), etaT(etaT) {}
+private:
+    float etaI, etaT;
+};
+
 // MicrofacetDistribution Declarations
 class MicrofacetDistribution {
 public:
