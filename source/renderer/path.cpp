@@ -111,12 +111,13 @@ Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
     Sampler s;
     vec2 ndc = (vec2(x, y) + s.Get2D());
     ndc = 2.f * ndc / vec2(scrw, scrh) - 1.f;
-    vec4 clip { ndc, 0, 1 };
+    vec4 clip { ndc, -1, 1 };
     vec4 camSpace = cam.clipToCamera * clip;
+    camSpace /= camSpace.w;
     // now in camera coordinates
     vec3 dir = cam.m * camSpace /* - vec3(0, 0, 0) */;
     o = cam.e;
-    d = normalize(dir - o);
+    d = normalize(dir - o); // the dir represents a point
     return { o, d };
 }
 
