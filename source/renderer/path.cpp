@@ -10,8 +10,8 @@ vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f;
 
 PathRenderer::PathRenderer()
 {
-	maxTraces = 128;
-	cout << "use " << maxTraces << " ray for every pixel" << endl;
+    maxTraces = 12;
+    cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 
 void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
@@ -117,7 +117,7 @@ Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
     // now in camera coordinates
     vec3 dir = cam.m * camSpace /* - vec3(0, 0, 0) */;
     o = cam.e;
-    d = normalize(dir - o); // the dir represents a point
+    d = normalize(dir - o); // here the dir represents a point
     return { o, d };
 }
 
@@ -144,6 +144,9 @@ Spectrum PathRenderer::Li(const Ray& r)
         } else if (isect.mat->IsEmissive()) {
             Lo += beta * vec3(isect.mat->GetAlbedo()) * isect.mat->GetEmissiveStrength();
             break;
+        } else if (float back = dot(-ray.d, isect.tri->normal); back <= 0) {
+            Lo += beta * vec3(isect.mat->GetAlbedo()) * abs(back);
+            break;
         }
 
         if (bounce == 0) {
@@ -165,7 +168,7 @@ Spectrum PathRenderer::Li(const Ray& r)
         vec3 n = isect.normal;
         beta *= f * abs(dot(wi, n)) / pdf;
         ray.d = wi;
-        ray.o = isect.p + ShadowEpsilon * n;
+        ray.o = isect.p; // + ShadowEpsilon * n;
         /*
             recursive version like:
             Lo += f * Le * cos / pdf;

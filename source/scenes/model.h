@@ -10,7 +10,7 @@ public:
     Model(std::string file) { LoadFromFile(file); };
 private:
     inline bool IsEmissive(int i) {
-        return (!(model.materials.size() <= 0) &&
+        return (i >= 0 && !(model.materials.size() <= 0) &&
                (model.materials[i].emissiveFactor[0] > 0.0f ||
                 model.materials[i].emissiveFactor[1] > 0.0f ||
                 model.materials[i].emissiveFactor[2] > 0.0f));

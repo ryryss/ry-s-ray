@@ -56,6 +56,10 @@ vec4 Material::GetTexture(const vec2& uv) const
     // int((1.0f - v) * (image.height - 1));
     int idx = (y * image->width + x) * image->component;
     auto pixel = image->image.data();
-    return { pixel[idx + 0] / 255.0f, pixel[idx + 1] / 255.0f,
-             pixel[idx + 2] / 255.0f, (image->component == 4) ? pixel[idx + 3] / 255.0f : 1.0f };
+    vec3 color = { pixel[idx + 0] / 255.0f,
+                   pixel[idx + 1] / 255.0f,
+                   pixel[idx + 2] / 255.0f};
+    // gamma
+    color = pow(color, vec3(2.2));
+    return { color, (image->component == 4) ? pixel[idx + 3] / 255.0f : 1.0f };
 }
