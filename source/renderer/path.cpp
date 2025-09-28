@@ -58,11 +58,13 @@ void PathRenderer::Parallel()
                     curX = x;
                     curY = y;
                     // if (x >= 200 && x <= 300 && y >= 200 && y <= 400) {
-                        sppBuffer[num] += vec4(PathTracing(x, y).c, 1.0);
+                    vec3 color = PathTracing(x, y).c;
+                    sppBuffer[num] += vec4(pow(color, vec3(GammaInv)), 1.0);
                         pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
                     // }
 #else
-                    sppBuffer[num] += vec4(PathTracing(x, y).c, 1.0);
+                    vec3 color = PathTracing(x, y).c;
+                    sppBuffer[num] += vec4(pow(color, vec3(GammaInv)), 1.0);
                     pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
 #endif
                 }
@@ -75,7 +77,8 @@ void PathRenderer::Parallel()
         for (uint16_t y = scrh / wCnt * wCnt; y < scrh; y++) {
             for (uint16_t x = 0; x < scrw; x++) {
                 uint32_t num = y * scrw + x;
-                sppBuffer[num] += vec4(PathTracing(x, y).c, 1.0);
+                vec3 color = PathTracing(x, y).c;
+                sppBuffer[num] += vec4(pow(color, vec3(GammaInv)), 1.0);
                 pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
             }
         }
@@ -141,9 +144,9 @@ Spectrum PathRenderer::Li(const Ray& r)
         if (!scene->Intersect(ray, isect)) {
             Lo += beta * vec3(A);
             break;
-        } else if (isect.mat->IsEmissive()) {
-            Lo += beta * vec3(isect.mat->GetAlbedo()) * isect.mat->GetEmissiveStrength();
-            break;
+        } else if (bounce == 0 && isect.mat->IsEmissive()) {
+            Lo += beta * vec3(isect.mat->GetEmission());
+            // break;
         } else if (float back = dot(-ray.d, isect.tri->normal); back <= 0) {
             Lo += beta * vec3(isect.mat->GetAlbedo()) * abs(back);
             break;
