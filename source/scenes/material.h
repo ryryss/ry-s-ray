@@ -20,7 +20,7 @@ public:
     inline float GetEmissiveStrength() const { return emissiveStrength; }
     virtual vec4 GetAlbedo(const vec2& uv) const;
     virtual vec4 GetAlbedo() const { return baseColorFactor; };
-
+    virtual vec4 GetEmission() const { return baseColorFactor * emissiveStrength; };
     std::unique_ptr<BSDF> CreateBSDF(const Scene* s, const Interaction* isect) const;
 private:
     vec4 Material::GetTexture(const vec2& uv) const;
