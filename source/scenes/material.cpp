@@ -5,19 +5,19 @@ using namespace std;
 using namespace ry;
 void Material::SetRawPtr(gltf::Model* pModel, gltf::Material* pMat)
 {
-	model = pModel;
-	m = pMat;
-	auto& pbr = m->pbrMetallicRoughness;
-	if (auto idx = pbr.baseColorTexture.index; idx >= 0) {
-		image = &model->images[idx];
-	}
+    model = pModel;
+    m = pMat;
+    auto& pbr = m->pbrMetallicRoughness;
+    if (auto idx = pbr.baseColorTexture.index; idx >= 0) {
+        image = &model->images[idx];
+    }
     baseColorFactor = vec4(pbr.baseColorFactor[0], pbr.baseColorFactor[1],
         pbr.baseColorFactor[2], pbr.baseColorFactor[3]);
 }
 
 vec4 Material::GetAlbedo(const vec2& uv) const
 {
-	return baseColorFactor * GetTexture(uv);
+    return baseColorFactor * GetTexture(uv);
 }
 
 unique_ptr<BSDF> Material::CreateBSDF(const Scene* s, const Interaction* isect) const

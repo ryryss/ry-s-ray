@@ -16,7 +16,7 @@ private:
                 model.materials[i].emissiveFactor[2] > 0.0f));
     }
 
-	bool LoadFromFile(const std::string& file);
+    bool LoadFromFile(const std::string& file);
     void ParseNode();
     void ParseMesh(int num);
     void ParseChildNode(int num);
@@ -37,7 +37,7 @@ private:
     std::vector <Camera> cameras;
     std::vector <Material> materials;
     // std::vector <Material> mats;
-	gltf::Model model;
+    gltf::Model model;
     std::vector<Node> nodes;
     std::vector<uint32_t> roots;
     std::vector<Vertex> vertices;

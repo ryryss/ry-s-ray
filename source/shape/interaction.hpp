@@ -14,8 +14,5 @@ struct Interaction {
     std::unique_ptr<BSDF> b;
     // now just triangle
     const Triangle* tri;
-#ifdef DEBUG
-    std::vector<uint64_t> record;
-#endif
 };
 }

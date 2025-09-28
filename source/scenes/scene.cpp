@@ -6,10 +6,10 @@ using namespace std;
 
 void Scene::AddModel(string file)
 {
-	models.push_back(Model(file));
-	ParseModel(models.back());
-	// temp solution
-	bvh = make_unique<BVH>(this, triangles.size());
+    models.push_back(Model(file));
+    ParseModel(models.back());
+    // temp solution
+    bvh = make_unique<BVH>(this, triangles.size());
 }
 
 void Scene::DelModel()
@@ -18,81 +18,81 @@ void Scene::DelModel()
 
 void Scene::ProcessCamera(uint16_t scrw, uint16_t scrh)
 {
-	for (auto& cam : cameras) {
-		if (cam.type == "perspective") {
-			cam.ymag = cam.znear * tan(cam.yfov / 2);
-			cam.xmag = cam.ymag * cam.aspectRatio;
-		} else {
-			cam.xmag = cam.ymag * scrw / scrh;
-		}
-		cam.clipToCamera = glm::inverse(glm::perspective(
-			(float)cam.yfov,
-			(float)cam.aspectRatio, cam.znear, cam.zfar
-		));
-	}
+    for (auto& cam : cameras) {
+        if (cam.type == "perspective") {
+            cam.ymag = cam.znear * tan(cam.yfov / 2);
+            cam.xmag = cam.ymag * cam.aspectRatio;
+        } else {
+            cam.xmag = cam.ymag * scrw / scrh;
+        }
+        cam.clipToCamera = glm::inverse(glm::perspective(
+            (float)cam.yfov,
+            (float)cam.aspectRatio, cam.znear, cam.zfar
+        ));
+    }
 }
 
 const Light& Scene::SampleOneLight()
 {
-	Sampler s;
-	return lights[s.GetIntInRange(0, lights.size() - 1)];
+    Sampler s;
+    return lights[s.GetIntInRange(0, lights.size() - 1)];
 }
 
 bool Scene::Intersect(const Ray& r, Interaction& isect) const
 {
-	vector<uint64_t> idx;
-	bvh->TraverseBVH(idx, r, bvh->root);
-	bool hit = false;
-	float t, gu, gv;
-	isect.tMax;
-	// for (int i = 0; i < triangles.size(); i++) {
-	for (auto& i : idx) {
-		auto& tri = triangles[i];
-		auto& a = vertices[tri.vertIdx[0]].pos;
-		auto& b = vertices[tri.vertIdx[1]].pos;
-		auto& c = vertices[tri.vertIdx[2]].pos;
-		if (Moller_Trumbore(r.o, r.d, a, b, c, t, gu, gv) &&
-			t > isect.tMin && t < isect.tMax) {
-			isect.tMax = t;
-			isect.bary = { 1 - gu - gv, gu, gv };
-			isect.p = r.o + t * r.d;
-			isect.tri = &tri;
-			hit = true;
-		}
-	}
-	if (hit) {
-		auto& a = vertices[isect.tri->vertIdx[0]];
-		auto& b = vertices[isect.tri->vertIdx[1]];
-		auto& c = vertices[isect.tri->vertIdx[2]];
-		isect.normal = normalize(isect.bary[0] * a.normal
-			+ isect.bary[1] * b.normal + isect.bary[2] * c.normal);
+    vector<uint64_t> idx;
+    bvh->TraverseBVH(idx, r, bvh->root);
+    bool hit = false;
+    float t, gu, gv;
+    isect.tMax;
+    // for (int i = 0; i < triangles.size(); i++) {
+    for (auto& i : idx) {
+        auto& tri = triangles[i];
+        auto& a = vertices[tri.vertIdx[0]].pos;
+        auto& b = vertices[tri.vertIdx[1]].pos;
+        auto& c = vertices[tri.vertIdx[2]].pos;
+        if (Moller_Trumbore(r.o, r.d, a, b, c, t, gu, gv) &&
+            t > isect.tMin && t < isect.tMax) {
+            isect.tMax = t;
+            isect.bary = { 1 - gu - gv, gu, gv };
+            isect.p = r.o + t * r.d;
+            isect.tri = &tri;
+            hit = true;
+        }
+    }
+    if (hit) {
+        auto& a = vertices[isect.tri->vertIdx[0]];
+        auto& b = vertices[isect.tri->vertIdx[1]];
+        auto& c = vertices[isect.tri->vertIdx[2]];
+        isect.normal = normalize(isect.bary[0] * a.normal
+            + isect.bary[1] * b.normal + isect.bary[2] * c.normal);
 
-		isect.mat = &materials[isect.tri->material];
-		// isect.mat->CreateBSDF();
-	}
-	return hit;
+        isect.mat = &materials[isect.tri->material];
+        // isect.mat->CreateBSDF();
+    }
+    return hit;
 }
 
 void Scene::ParseModel(const Model& model)
 {
-	int matCnt = materials.size();
-	for (auto tri : model.triangles) {
-		tri.material += matCnt;
-		tri.vertIdx[0] += vertices.size();
-		tri.vertIdx[1] += vertices.size();
-		tri.vertIdx[2] += vertices.size();
-	}
-	triangles.insert(triangles.begin(), model.triangles.begin(), model.triangles.end());
-	
-	cameras.insert(cameras.begin(), model.cameras.begin(), model.cameras.end());
-	
-	for (auto light : model.lights) {
-		for (auto& i : light.triangles) {
-			i += triangles.size();
-		}
-	}
-	lights.insert(lights.begin(), model.lights.begin(), model.lights.end());
+    int matCnt = materials.size();
+    for (auto tri : model.triangles) {
+        tri.material += matCnt;
+        tri.vertIdx[0] += vertices.size();
+        tri.vertIdx[1] += vertices.size();
+        tri.vertIdx[2] += vertices.size();
+    }
+    triangles.insert(triangles.begin(), model.triangles.begin(), model.triangles.end());
+    
+    cameras.insert(cameras.begin(), model.cameras.begin(), model.cameras.end());
+    
+    for (auto light : model.lights) {
+        for (auto& i : light.triangles) {
+            i += triangles.size();
+        }
+    }
+    lights.insert(lights.begin(), model.lights.begin(), model.lights.end());
 
-	materials.insert(materials.begin(), model.materials.begin(), model.materials.end());
-	vertices.insert(vertices.begin(), model.vertices.begin(), model.vertices.end());
+    materials.insert(materials.begin(), model.materials.begin(), model.materials.end());
+    vertices.insert(vertices.begin(), model.vertices.begin(), model.vertices.end());
 }

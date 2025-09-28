@@ -5,32 +5,32 @@ class Interaction;
 class Scene;
 class Material {
 public:
-	Material() {}
-	void SetRawPtr(gltf::Model* pModel, gltf::Material* pMat);
-	inline void SetEmissiveInfo(const vec4& factor, float strength) {
-		baseColorFactor = factor;
-		emissiveStrength = strength;
-	}
-	inline bool IsEmissive() const {
-	    /*(m->emissiveFactor[0] > 0.0f ||
-		 m->emissiveFactor[1] > 0.0f ||
-		 m->emissiveFactor[2] > 0.0f);*/
-		return emissiveStrength != 0.0;
-	}
-	inline float GetEmissiveStrength() const { return emissiveStrength; }
+    Material() {}
+    void SetRawPtr(gltf::Model* pModel, gltf::Material* pMat);
+    inline void SetEmissiveInfo(const vec4& factor, float strength) {
+        baseColorFactor = factor;
+        emissiveStrength = strength;
+    }
+    inline bool IsEmissive() const {
+        /*(m->emissiveFactor[0] > 0.0f ||
+         m->emissiveFactor[1] > 0.0f ||
+         m->emissiveFactor[2] > 0.0f);*/
+        return emissiveStrength != 0.0;
+    }
+    inline float GetEmissiveStrength() const { return emissiveStrength; }
     virtual vec4 GetAlbedo(const vec2& uv) const;
-	virtual vec4 GetAlbedo() const { return baseColorFactor; };
+    virtual vec4 GetAlbedo() const { return baseColorFactor; };
 
-	std::unique_ptr<BSDF> CreateBSDF(const Scene* s, const Interaction* isect) const;
+    std::unique_ptr<BSDF> CreateBSDF(const Scene* s, const Interaction* isect) const;
 private:
-	vec4 Material::GetTexture(const vec2& uv) const;
+    vec4 Material::GetTexture(const vec2& uv) const;
 
-	gltf::Material* m = nullptr;
-	gltf::Model* model = nullptr;
-	// TODO texture and sample
-	gltf::Image* image = nullptr;
+    gltf::Material* m = nullptr;
+    gltf::Model* model = nullptr;
+    // TODO texture and sample
+    gltf::Image* image = nullptr;
 
-	vec4 baseColorFactor;
-	float emissiveStrength = 0.0;
+    vec4 baseColorFactor;
+    float emissiveStrength = 0.0;
 };
 }

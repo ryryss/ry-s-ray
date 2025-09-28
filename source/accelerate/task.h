@@ -1,5 +1,4 @@
-#ifndef	TASK_H
-#define TASK_H
+#pragma once
 #include "pch.h"
 class Task {
 public:
@@ -49,4 +48,3 @@ private:
 
     size_t cores;
 };
-#endif

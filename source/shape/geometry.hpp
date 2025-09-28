@@ -52,7 +52,6 @@ struct Ray {
     vec3 o;
     vec3 d;
     vec3 dInv;
-    int sign[3];
     Ray(const vec3& origin, const vec3& dir) : o(origin), d(dir) {
         dInv = vec3(1.0f / dir.x, 1.0f / dir.y, 1.0f / dir.z);
     }
