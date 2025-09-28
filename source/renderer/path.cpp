@@ -167,8 +167,7 @@ Spectrum PathRenderer::Li(const Ray& r)
         // float cos = glm::max(dot(n, wi), 0.f);
         vec3 n = isect.normal;
         beta *= f * abs(dot(wi, n)) / pdf;
-        ray.d = wi;
-        ray.o = isect.p; // + ShadowEpsilon * n;
+        ray = Ray{ isect.p , wi };
         /*
             recursive version like:
             Lo += f * Le * cos / pdf;

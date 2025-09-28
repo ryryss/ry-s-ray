@@ -8,6 +8,8 @@ void Scene::AddModel(string file)
 {
 	models.push_back(Model(file));
 	ParseModel(models.back());
+	// temp solution
+	bvh = make_unique<BVH>(this, triangles.size());
 }
 
 void Scene::DelModel()
@@ -38,10 +40,14 @@ const Light& Scene::SampleOneLight()
 
 bool Scene::Intersect(const Ray& r, Interaction& isect) const
 {
+	vector<uint64_t> idx;
+	bvh->TraverseBVH(idx, r, bvh->root);
 	bool hit = false;
 	float t, gu, gv;
 	isect.tMax;
-	for (auto& tri : triangles) {
+	// for (int i = 0; i < triangles.size(); i++) {
+	for (auto& i : idx) {
+		auto& tri = triangles[i];
 		auto& a = vertices[tri.vertIdx[0]].pos;
 		auto& b = vertices[tri.vertIdx[1]].pos;
 		auto& c = vertices[tri.vertIdx[2]].pos;
@@ -60,7 +66,7 @@ bool Scene::Intersect(const Ray& r, Interaction& isect) const
 		auto& c = vertices[isect.tri->vertIdx[2]];
 		isect.normal = normalize(isect.bary[0] * a.normal
 			+ isect.bary[1] * b.normal + isect.bary[2] * c.normal);
-		
+
 		isect.mat = &materials[isect.tri->material];
 		// isect.mat->CreateBSDF();
 	}

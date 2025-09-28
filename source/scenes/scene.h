@@ -1,4 +1,5 @@
 #pragma once
+#include "bvh.h"
 #include "interaction.hpp"
 #include "model.h"
 namespace ry {
@@ -26,7 +27,6 @@ private:
 	void ParseModel(const Model& model);
 
 	std::vector<Model> models;
-
 	std::vector <Light> lights;
 	std::vector <Camera> cameras;
 	std::vector <Material> materials;
@@ -34,6 +34,9 @@ private:
 	std::vector <Triangle> triangles;
 
 	uint8_t camera = 0;
+
+	std::unique_ptr<BVH> bvh;
+	friend class BVH;
 };
 }
 
