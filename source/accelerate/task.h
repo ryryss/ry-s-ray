@@ -1,14 +1,5 @@
-#ifndef	TASK_H
-#define TASK_H
-#include "pub.h"
-#include <thread>
-#include <queue>
-#include <thread>
-#include <condition_variable>
-#include <future>
-#include <functional>
-#include <atomic>
-
+#pragma once
+#include "pch.h"
 class Task {
 public:
     static Task& GetInstance() {
@@ -57,4 +48,3 @@ private:
 
     size_t cores;
 };
-#endif

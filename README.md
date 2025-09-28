@@ -1,6 +1,7 @@
 # ry‘s ray
 ry is learning ray trace.
-Simple project focused on verifying ray tracing algorithms using only CPU-based computation.
+
+This project is dedicated to testing and validating various ray tracing algorithms and techniques, using Blender Cycles as the reference renderer.
 
 ## Env
 This project requires the following third-party libraries:
@@ -11,8 +12,7 @@ This project requires the following third-party libraries:
 ## Features
 - receive a simple glb/gltf input
 - use the first camera  and the first light found to render target
-- also only  the first found texture used  :)
-- [TODO: reading *Physically Based Rendering*](https://github.com/mmp/pbr-book-website) 
+- [pbr : being implemented](https://github.com/mmp/pbr-book-website)
 
 ## Hardware
  intel i7-8700
@@ -27,9 +27,10 @@ This project requires the following third-party libraries:
 - v1.0.2 simple shadow support
 - v1.0.3 fix some bug
 - v1.1.0 PBR base
+- v1.2.0 refactor and reflection
 
 ## Test File
-See https://github.com/KhronosGroup/glTF-Sample-Models
+See https://github.com/KhronosGroup/glTF-Sample-Models or [branch model](https://github.com/ryryss/ry-s-ray/tree/model)
 
 v1.1.1
 

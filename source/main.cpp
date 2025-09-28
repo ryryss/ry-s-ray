@@ -1,42 +1,36 @@
 ﻿#include <Windows.h>
-#include "pub.h"
-#include "display.h"
-#include "loader.h"
-#include "tracer.h"
+#include "display.hpp"
+#include "path.h"
 
-using namespace std;
 using namespace ry;
+using namespace std;
 using namespace std::chrono;
 
 int main(int argc, char* argv[]) {
-    string input;
-    if (argc < 2) {
+    string input; 
+    if (argc < 2) { // now just sup one input
         cout << "please input a simple gltf/glb file: " << endl;
         cin >> input;
     } else {
         input = argv[1];
     }
-    auto& model = Loader::GetInstance();
-    if (!model.LoadFromFile(input)) {
-        throw("can not open glb/gltf.");
-    }
+    Scene scene;
+    scene.AddModel(input);
     auto& d = Display::GetInstance();
-    model.ProcessCamera({d.getWindowWidth(), d.getWindowHeight()});
 
     bool keepRender = true;
-    Tracer r;
-    r.SetInOutPut({ d.getWindowWidth(), d.getWindowHeight() }, &model, d.GetPixels().data());
-    thread t([&r, &keepRender](){
+    PathRenderer renderer;
+    thread t([&](){
         // while (keepRender) {
             auto now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-            r.Excute();
+            renderer.Render(&scene, d.getWindowWidth(), d.getWindowHeight(), d.GetPixels().data());
             cout << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - now << endl;
         // }
     });
     t.detach();
 
     while (1) {
-        d.UpdateFrame();
+        d.UpdateFrame(); // present to display
         Sleep(50);
     }
     keepRender = false;

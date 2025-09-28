@@ -1,8 +1,9 @@
-#ifndef DISPLAY_H
-#define DISPLAY_H
-#include <GLFW/glfw3.h>
-#include "pub.h"
+#pragma once
 
+#include <GLFW/glfw3.h>
+#include "pch.h"
+
+namespace ry {
 class Display {
 public:
     Display(const Display&) = delete;
@@ -15,7 +16,7 @@ public:
         static Display instance(width, height, title);
         return instance;
     }
-    std::vector<ry::vec4>& GetPixels() {
+    std::vector<vec4>& GetPixels() {
         return pixels;
     }
 
@@ -79,7 +80,7 @@ private:
             pixels.resize(w * h);
         }
     }
-    std::vector<ry::vec4> pixels;
+    std::vector<vec4> pixels;
     GLFWwindow* window;
     GLuint texture;
     uint16_t width;
@@ -88,4 +89,4 @@ private:
     uint16_t old_w;
     uint16_t old_h;
 };
-#endif // !DISPLAY
+}
