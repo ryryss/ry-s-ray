@@ -19,7 +19,8 @@ This project requires the following third-party libraries:
 
 ## Perf
 - v1.0.0 3000+ triangles take about 3 seconds to render on intel i7-8700
-- v1.1.1 4000+ triangles simple PBR (SPP=64  bounces=3) with BVH 26s, without BVH 168s
+- v1.1.1 4000+ triangles simple PBR (SPP=64  bounces=3) with BVH 26s, without BVH 168s (BVH have bug)
+- v1.2.0 4000+ triangles simple PBR (SPP=64  bounces=3) with BVH 300s, without BVH 1500s (why become so long,,,)
 
 ## Version
 - v1.0.0 use the first camera  and the first light found to render target
@@ -29,18 +30,21 @@ This project requires the following third-party libraries:
 - v1.1.0 PBR base
 - v1.2.0 refactor and reflection
 
+## TODO List
+- some render bug :  especially for reflection
+- acceleration (real time)
+- multiple importance sampling
+- noise reduction
+- gpu support
+- multi-buffer
+- specify material
+
 ## Test File
 See https://github.com/KhronosGroup/glTF-Sample-Models or [branch model](https://github.com/ryryss/ry-s-ray/tree/model)
 
-v1.1.1
+v1.2.0
 
-Need to optimize sampling direction
+right side is  blender Cycles engine also use 64 spp and 3 bounces
 
-![](rendering%20effect/v1.1.1.png)
-
-v1.1.0
-
-PBR base,  simple implement Lambert diffuse reflection and cos hemispherical sampling
-
-![](rendering%20effect/v1.1.0.png)
+<img src="rendering%20effect/v1.2.0.png" style="zoom: 80%;" />
 
