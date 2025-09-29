@@ -28,7 +28,7 @@ unique_ptr<BSDF> Material::CreateBSDF(const Scene* s, const Interaction* isect) 
     const auto& c = s->GetVertex(isect->tri->vertIdx[2]);
     vec2 uv = isect->bary[0] * a->uv + isect->bary[1] * b->uv + isect->bary[2] * c->uv;
     auto baseColor = GetAlbedo(uv);
-    unique_ptr<BSDF> bsdf = make_unique<BSDF>(isect->tri->normal);
+    unique_ptr<BSDF> bsdf = make_unique<BSDF>(isect->normal);
 
     // diffuse
     if (pbr.metallicFactor < 1.0f - FloatEpsilon) {

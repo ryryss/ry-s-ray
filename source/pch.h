@@ -17,8 +17,8 @@
 #include <atomic>
 #include <queue>
 
-static float Gamma = 2.2; // gamma to linear
-static float GammaInv = 1 / Gamma;
+static float Gamma = 2.2f; // gamma to linear
+static float GammaInv = 1.f / Gamma;
 static float ShadowEpsilon = 1e-5;
 static float FloatEpsilon = 1e-6;
 static float Pi = 3.14159265358979323846;

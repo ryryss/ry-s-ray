@@ -45,7 +45,7 @@ struct Triangle {
     vec3 c; // centroid
     int material;
     uint32_t vertIdx[3];
-    vec3 normal;
+    // vec3 normal;
 };
 
 struct Ray {

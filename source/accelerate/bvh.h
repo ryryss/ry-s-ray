@@ -67,9 +67,9 @@ public:
 
     void ComputeBounds(BVHNode& node, const std::vector<uint64_t>& indices);
     std::shared_ptr<BVHNode> BuildNode(std::vector<uint64_t>& indices);
-    bool BVH::SAHSplit(const std::shared_ptr<BVHNode> node, const std::vector<uint64_t>& indices,
+    bool SAHSplit(const std::shared_ptr<BVHNode> node, const std::vector<uint64_t>& indices,
         std::vector<uint64_t>& l, std::vector<uint64_t>& r);
-    void BVH::MidSplit(const std::shared_ptr<BVHNode> node, std::vector<uint64_t>& indices,
+    void MidSplit(const std::shared_ptr<BVHNode> node, std::vector<uint64_t>& indices,
         std::vector<uint64_t>& l, std::vector<uint64_t>& r);
     void TraverseBVH(std::vector<uint64_t>& res, const Ray& ray, const std::shared_ptr<BVHNode> node);
     std::shared_ptr<BVHNode> root;

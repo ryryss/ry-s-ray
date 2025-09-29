@@ -260,7 +260,7 @@ void Model::ParsePrimitive(const gltf::Primitive& p, const mat4& m)
         auto& b = vertices[tri.vertIdx[1]].pos;
         auto& c = vertices[tri.vertIdx[2]].pos;
         tri.c = (a + b + c) / 3.0f;
-        tri.normal = normalize(cross(b - a, c - a));
+        // tri.normal = normalize(cross(b - a, c - a));
 
         if (emissive) {
             emissiveTris.push_back(triangles.size() - 1);

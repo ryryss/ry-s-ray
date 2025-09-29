@@ -23,8 +23,8 @@ Spectrum Light::Sample_Li(const Scene* scene, const Interaction* isect, vec3* wi
 
     float cosl = glm::max(0.f, dot(lightNormal, -*wi));
     *pdf = dist2 / (cosl * area); // uniform surface sampling
-    Spectrum Le = I.c * emissiveStrength;// / (Pi * lgt.area);
-    return Le; // * cosp * cosl / (dist2 * pdf);
+    Spectrum Le = I.c * emissiveStrength;
+    return Le;
 }
 
 uint16_t Light::SamplePoint(const Scene* scene, vec3& pos, vec3& n) const
@@ -45,6 +45,6 @@ uint16_t Light::SamplePoint(const Scene* scene, vec3& pos, vec3& n) const
     const auto& c = scene->GetVertex(triangle->vertIdx[2]);
 
     pos = (1 - u - v) * a->pos + u * b->pos + v * c->pos;
-    n = triangle->normal;
+    n = (1 - u - v) * a->normal + u * b->normal + v * c->normal; // triangle->normal;
     return i;
 }

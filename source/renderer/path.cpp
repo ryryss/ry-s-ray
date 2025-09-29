@@ -147,7 +147,7 @@ Spectrum PathRenderer::Li(const Ray& r)
         } else if (bounce == 0 && isect.mat->IsEmissive()) {
             Lo += beta * vec3(isect.mat->GetEmission());
             // break;
-        } else if (float back = dot(-ray.d, isect.tri->normal); back <= 0) {
+        } else if (float back = dot(-ray.d, isect.normal); back <= 0) {
             Lo += beta * vec3(isect.mat->GetAlbedo()) * abs(back);
             break;
         }
@@ -162,6 +162,8 @@ Spectrum PathRenderer::Li(const Ray& r)
         float pdf;
         vec3 wi;
         // get wi and f from bsdf
+        // r.d from camara and point to hit point
+        // wi will start from the hit point
         Spectrum f = isect.bsdf->Sample_f(-ray.d, &wi, s.Get2D(), &pdf, BSDF_ALL);
         if (pdf <= 0) {
             break;
@@ -191,6 +193,6 @@ Spectrum PathRenderer::EstimateDirect(const vec3& wo, const Interaction& isect)
     float pdf;
     Spectrum Li = light.Sample_Li(scene, &isect, &wi, &pdf);
     float cosp = glm::max(0.f, dot(isect.normal, wi));
-    Spectrum f = isect.bsdf->f(wo, wi);
+    Spectrum f = isect.bsdf->f(-wo, wi);
     return Li * f * cosp / pdf;
 }
