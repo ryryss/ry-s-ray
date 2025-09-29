@@ -44,7 +44,6 @@ bool Scene::Intersect(const Ray& r, Interaction& isect) const
     bvh->TraverseBVH(idx, r, bvh->root);
     bool hit = false;
     float t, gu, gv;
-    isect.tMax;
     // for (int i = 0; i < triangles.size(); i++) {
     for (auto& i : idx) {
         auto& tri = triangles[i];
@@ -68,7 +67,7 @@ bool Scene::Intersect(const Ray& r, Interaction& isect) const
             + isect.bary[1] * b.normal + isect.bary[2] * c.normal);
 
         isect.mat = &materials[isect.tri->material];
-        // isect.mat->CreateBSDF();
+        isect.bsdf = isect.mat->CreateBSDF(this, &isect);
     }
     return hit;
 }

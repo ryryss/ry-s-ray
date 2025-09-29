@@ -23,7 +23,7 @@ public:
     virtual vec4 GetEmission() const { return baseColorFactor * emissiveStrength; };
     std::unique_ptr<BSDF> CreateBSDF(const Scene* s, const Interaction* isect) const;
 private:
-    vec4 Material::GetTexture(const vec2& uv) const;
+    vec4 GetTexture(const vec2& uv) const;
 
     gltf::Material* m = nullptr;
     gltf::Model* model = nullptr;

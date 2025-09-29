@@ -155,15 +155,14 @@ Spectrum PathRenderer::Li(const Ray& r)
         if (bounce == 0) {
             // process specular 
         }
-        Lo += beta * EstimateDirect(isect);
+        Lo += beta * EstimateDirect(ray.d, isect);
 
         // indirect
         Sampler s;
         float pdf;
         vec3 wi;
-        std::unique_ptr<BSDF> b = isect.mat->CreateBSDF(scene, &isect);
         // get wi and f from bsdf
-        Spectrum f = b->Sample_f(-ray.d, &wi, s.Get2D(), &pdf, BSDF_ALL);
+        Spectrum f = isect.bsdf->Sample_f(-ray.d, &wi, s.Get2D(), &pdf, BSDF_ALL);
         if (pdf <= 0) {
             break;
         }
@@ -182,11 +181,16 @@ Spectrum PathRenderer::Li(const Ray& r)
     return Lo;
 }
 
-Spectrum PathRenderer::EstimateDirect(const Interaction& isect)
+Spectrum PathRenderer::EstimateDirect(const vec3& wo, const Interaction& isect)
 {
     // TODO: MIS
-    auto& lgt = scene->SampleOneLight();
+    Spectrum Ld(0.f);
+    auto& light = scene->SampleOneLight();
     Sampler s;
-    vec3 w;
-    return lgt.Sample_Li(scene, &isect, w);
+    vec3 wi;
+    float pdf;
+    Spectrum Li = light.Sample_Li(scene, &isect, &wi, &pdf);
+    float cosp = glm::max(0.f, dot(isect.normal, wi));
+    Spectrum f = isect.bsdf->f(wo, wi);
+    return Li * f * cosp / pdf;
 }

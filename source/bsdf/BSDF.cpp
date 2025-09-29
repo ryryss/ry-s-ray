@@ -1,4 +1,4 @@
-#include "bsdf.h"
+﻿#include "bsdf.h"
 using namespace ry;
 using namespace std;
 vec2 ConcentricSampleDisk(const vec2& u) {
@@ -46,6 +46,20 @@ Spectrum BSDF::Sample_f(const vec3& woWorld, vec3* wiWorld, vec2& u, float* pdf,
     return f;
 }
 
+Spectrum BSDF::f(const vec3& woW, const vec3& wiW, BxDFType flags) const
+{
+    vec3 wi = ToLocal(wiW), wo = ToLocal(woW);
+    if (wo.z == 0) { return 0.; }
+
+    Spectrum f(0.f);
+    for (auto& bxdf : bxdfs) {
+        if (bxdf->MatchesFlags(flags)) {
+            f += bxdf->f(wo, wi);
+        }
+    }
+    return f;
+}
+
 Spectrum LambertianReflection::f(const vec3& wo, const vec3& wi) const
 {
     return R * InvPi;
@@ -81,12 +95,20 @@ Spectrum MicrofacetReflection::f(const vec3& wo, const vec3& wi) const
 
 Spectrum MicrofacetReflection::Sample_f(const vec3& wo, vec3* wi, const vec2& u, float* pdf, BxDFType* sampledType) const
 {
+    /*
+    specular GGX/Trowbridge-Reitz
+    n : normal
+    h : half normal
+    l : point to light
+    v : point to watch
+    fr​(l, v) = D(n, h)F(v, h)G(l, v) / (4 * (n⋅l)(n⋅v))
+    */
     // Sample microfacet orientation $\wh$ and reflected direction $\wi$
-    if (wo.z == 0) return 0.;
+    if (wo.z == 0) { return 0.; };
     vec3 wh = distribution->Sample_wh(wo, u);
-    if (dot(wo, wh) < 0) return 0.;   // Should be rare
+    if (dot(wo, wh) < 0) { return 0.; };   // Should be rare
     *wi = Reflect(wo, wh);
-    if (!SameHemisphere(wo, *wi)) return Spectrum(0.f);
+    if (!SameHemisphere(wo, *wi)) { return 0.f; };
 
     // Compute PDF of _wi_ for microfacet reflection
     *pdf = distribution->Pdf(wo, wh) / (4 * dot(wo, wh));
@@ -139,8 +161,7 @@ static void TrowbridgeReitzSample11(float cosTheta, float U1, float U2,
 static vec3 TrowbridgeReitzSample(const vec3& wi, float alpha_x,
     float alpha_y, float U1, float U2) {
     // 1. stretch wi
-    vec3 wiStretched =
-        normalize(vec3(alpha_x * wi.x, alpha_y * wi.y, wi.z));
+    vec3 wiStretched = normalize(vec3(alpha_x * wi.x, alpha_y * wi.y, wi.z));
 
     // 2. simulate P22_{wi}(x_slope, y_slope, 1, 1)
     float slope_x, slope_y;
@@ -194,6 +215,7 @@ vec3 TrowbridgeReitzDistribution::Sample_wh(const vec3& wo, const vec2& u) const
         wh = SphericalDirection(sinTheta, cosTheta, phi);
         if (!SameHemisphere(wo, wh)) wh = -wh;
     } else {
+        // Heitz 2014 GGX VNDF
         bool flip = wo.z < 0;
         wh = TrowbridgeReitzSample(flip ? -wo : wo, alphax, alphay, u[0], u[1]);
         if (flip) wh = -wh;

@@ -11,7 +11,7 @@ struct Interaction {
     vec3 normal;   // of hit face
 
     const Material* mat;
-    std::unique_ptr<BSDF> b;
+    std::unique_ptr<BSDF> bsdf;
     // now just triangle
     const Triangle* tri;
 };

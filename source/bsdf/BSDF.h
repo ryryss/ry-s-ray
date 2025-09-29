@@ -102,8 +102,10 @@ private:
 class BSDF {
 public:
     BSDF(const vec3& sn);
-    Spectrum BSDF::Sample_f(const vec3& woWorld, vec3* wiWorld,
+    Spectrum Sample_f(const vec3& woWorld, vec3* wiWorld,
         vec2& u, float* pdf, BxDFType type) const;
+    Spectrum f(const vec3& woW, const vec3& wiW,
+        BxDFType flags = BSDF_ALL) const;
     void Add(std::unique_ptr<BxDF> b) {
         bxdfs.push_back(std::move(b));
     }
@@ -138,6 +140,18 @@ public:
     FresnelDielectric(float etaI, float etaT) : etaI(etaI), etaT(etaT) {}
 private:
     float etaI, etaT;
+};
+
+class FresnelSchlick : public Fresnel {
+public:
+    FresnelSchlick(const Spectrum& F0) : F0(F0) {}
+    Spectrum Evaluate(float cosThetaI) const override {
+        // Schlick : F(theta) = F0 + (1-F0)*(1-cosThetaI)^5
+        float factor = powf(1.0f - cosThetaI, 5.0f);
+        return F0 + (Spectrum(1.0f) - F0) * factor;
+    }
+private:
+    Spectrum F0;
 };
 
 // MicrofacetDistribution Declarations

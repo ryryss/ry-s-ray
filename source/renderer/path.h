@@ -14,7 +14,7 @@ private:
     vec4 SampleTexture(const vec3& bary, const vec2& uv0, 
         const vec2& uv1, const vec2& uv2);
 
-    Spectrum EstimateDirect(const Interaction& isect);
+    Spectrum EstimateDirect(const vec3& wo, const Interaction& isect);
 
     vec4* pixels;
     std::vector<vec4> sppBuffer;

@@ -1,4 +1,4 @@
-#include "material.h"
+﻿#include "material.h"
 #include "interaction.hpp"
 #include "scene.h"
 using namespace std;
@@ -17,7 +17,7 @@ void Material::SetRawPtr(gltf::Model* pModel, gltf::Material* pMat)
 
 vec4 Material::GetAlbedo(const vec2& uv) const
 {
-    return baseColorFactor * GetTexture(uv);
+    return image ? baseColorFactor * GetTexture(uv) : baseColorFactor;
 }
 
 unique_ptr<BSDF> Material::CreateBSDF(const Scene* s, const Interaction* isect) const
@@ -36,11 +36,11 @@ unique_ptr<BSDF> Material::CreateBSDF(const Scene* s, const Interaction* isect) 
         if (!diffuseColor.IsBlack()) {
             bsdf->Add(make_unique<LambertianReflection>(diffuseColor));
         }
-    } else {
-        // specular GGX/Trowbridge-Reitz
-        // Spectrum F0 = glm::mix(Spectrum(0.04f).c, baseColor.c, pbr.metallicFactor);
+    } else { 
+        // GGX/Trowbridge-Reitz
+        Spectrum F0 = glm::mix(Spectrum(0.04f).c, vec3(baseColor), pbr.metallicFactor);
         auto distrib = make_shared<TrowbridgeReitzDistribution>(pbr.roughnessFactor, pbr.roughnessFactor);
-        auto fresnel = make_shared<FresnelNoOp>();
+        auto fresnel = make_shared<FresnelSchlick>(F0);
         bsdf->Add(make_unique<MicrofacetReflection>(vec3(baseColor), distrib, fresnel));
     }
     return bsdf;
@@ -59,7 +59,7 @@ vec4 Material::GetTexture(const vec2& uv) const
     vec3 color = { pixel[idx + 0] / 255.0f,
                    pixel[idx + 1] / 255.0f,
                    pixel[idx + 2] / 255.0f};
-    // gamma
+
     color = pow(color, vec3(Gamma));
     return { color, (image->component == 4) ? pixel[idx + 3] / 255.0f : 1.0f };
 }
