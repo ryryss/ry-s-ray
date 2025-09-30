@@ -10,7 +10,7 @@ vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f;
 
 PathRenderer::PathRenderer()
 {
-    maxTraces = 1;
+    maxTraces = 12;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 
@@ -146,13 +146,15 @@ Spectrum PathRenderer::Li(const Ray& r)
             Lo += beta * vec3(A);
             break;
         } else if ((bounce == 0 || specularBounce) && isect.mat->IsEmissive()) {
-            Lo += beta * vec3(isect.mat->GetEmission());
+            Lo += beta * vec3(isect.mat->GetEmission()); // TODO need to cal angle
         } else if (float back = dot(-ray.d, isect.normal); back <= 0) {
             Lo += beta * vec3(isect.mat->GetAlbedo()) * abs(back);
             break;
         }
-        Lo += beta * EstimateDirect(ray.d, isect);
-        
+
+        if (isect.bsdf->NumComponents(BxDFType(BSDF_ALL & ~BSDF_SPECULAR)) > 0) {
+            Lo += beta * EstimateDirect(ray.d, isect);
+        }
         // indirect
         Sampler s;
         float pdf;

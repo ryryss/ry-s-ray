@@ -99,28 +99,6 @@ private:
     const Spectrum R;
 };
 
-class BSDF {
-public:
-    BSDF(const vec3& sn);
-    Spectrum Sample_f(const vec3& woWorld, vec3* wiWorld,
-        vec2& u, float* pdf, BxDFType type = BSDF_ALL) const;
-    Spectrum f(const vec3& woW, const vec3& wiW,
-        BxDFType flags = BSDF_ALL) const;
-    void Add(std::unique_ptr<BxDF> b) {
-        bxdfs.push_back(std::move(b));
-    }
-    inline vec3 ToWorld(const vec3& local) const {
-        return local.x * t + local.y * b + local.z * n;
-    }
-    inline vec3 ToLocal(const vec3& world) const {
-        return vec3(dot(world, t), dot(world, b), dot(world, n));
-    }
-private:
-    // static int MaxBxDFs = 8;
-    std::vector<std::unique_ptr<BxDF>> bxdfs;
-    vec3 n, b, t;
-};
-
 class Fresnel {
 public:
     // Fresnel Interface
@@ -224,5 +202,36 @@ private:
 
     // TrowbridgeReitzDistribution Private Data
     const float alphax, alphay;
+};
+
+class BSDF {
+public:
+    BSDF(const vec3& sn);
+    Spectrum Sample_f(const vec3& woWorld, vec3* wiWorld,
+        vec2& u, float* pdf, BxDFType type = BSDF_ALL) const;
+    Spectrum f(const vec3& woW, const vec3& wiW,
+        BxDFType flags = BSDF_ALL) const;
+    void Add(std::unique_ptr<BxDF> b) {
+        bxdfs.push_back(std::move(b));
+    }
+    inline vec3 ToWorld(const vec3& local) const {
+        return local.x * t + local.y * b + local.z * n;
+    }
+    inline vec3 ToLocal(const vec3& world) const {
+        return vec3(dot(world, t), dot(world, b), dot(world, n));
+    }
+    int NumComponents(BxDFType type) {
+        int c = 0;
+        for (auto& bxdf : bxdfs) {
+            if ((bxdf->type & type) == bxdf->type) {
+                c++;
+            }
+        }
+        return c;
+    }
+private:
+    // static int MaxBxDFs = 8;
+    std::vector<std::unique_ptr<BxDF>> bxdfs;
+    vec3 n, b, t;
 };
 }
