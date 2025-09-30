@@ -42,6 +42,11 @@ bool Scene::Intersect(const Ray& r, Interaction& isect) const
 {
     vector<uint64_t> idx;
     bvh->TraverseBVH(idx, r, bvh->root);
+    return Intersect(r, idx, isect);
+}
+
+bool ry::Scene::Intersect(const Ray& r, const vector<uint64_t>& idx, Interaction& isect) const
+{
     bool hit = false;
     float t, gu, gv;
     // for (int i = 0; i < triangles.size(); i++) {
@@ -70,6 +75,18 @@ bool Scene::Intersect(const Ray& r, Interaction& isect) const
         isect.bsdf = isect.mat->CreateBSDF(this, &isect);
     }
     return hit;
+}
+
+const Light* ry::Scene::IntersectEmissive(const Ray& r, Interaction& isect) const
+{
+    const Light* light = nullptr;
+    for (int i = 0; i < lights.size(); i++) {
+        auto& l = lights[i];
+        if (Intersect(r, l.triangles, isect)) {
+            light = &l;
+        }
+    }
+    return light;
 }
 
 void Scene::ParseModel(const Model& model)

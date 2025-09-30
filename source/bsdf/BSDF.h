@@ -103,7 +103,7 @@ class BSDF {
 public:
     BSDF(const vec3& sn);
     Spectrum Sample_f(const vec3& woWorld, vec3* wiWorld,
-        vec2& u, float* pdf, BxDFType type) const;
+        vec2& u, float* pdf, BxDFType type = BSDF_ALL) const;
     Spectrum f(const vec3& woW, const vec3& wiW,
         BxDFType flags = BSDF_ALL) const;
     void Add(std::unique_ptr<BxDF> b) {

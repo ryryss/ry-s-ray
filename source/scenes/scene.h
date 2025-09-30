@@ -23,6 +23,8 @@ public:
     };
 
     bool Intersect(const Ray& r, Interaction& isect) const;
+    bool Intersect(const Ray& r, const std::vector<uint64_t>& idx, Interaction& isect) const;
+    const Light* IntersectEmissive(const Ray& r, Interaction& isect) const;
 private:
     void ParseModel(const Model& model);
 

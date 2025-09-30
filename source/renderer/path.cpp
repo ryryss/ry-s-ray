@@ -164,7 +164,7 @@ Spectrum PathRenderer::Li(const Ray& r)
         // get wi and f from bsdf
         // r.d from camara and point to hit point
         // wi will start from the hit point
-        Spectrum f = isect.bsdf->Sample_f(-ray.d, &wi, s.Get2D(), &pdf, BSDF_ALL);
+        Spectrum f = isect.bsdf->Sample_f(-ray.d, &wi, s.Get2D(), &pdf);
         if (pdf <= 0) {
             break;
         }
@@ -185,7 +185,6 @@ Spectrum PathRenderer::Li(const Ray& r)
 
 Spectrum PathRenderer::EstimateDirect(const vec3& wo, const Interaction& isect)
 {
-    // TODO: MIS
     Spectrum Ld(0.f);
     auto& light = scene->SampleOneLight();
     Sampler s;
@@ -194,5 +193,7 @@ Spectrum PathRenderer::EstimateDirect(const vec3& wo, const Interaction& isect)
     Spectrum Li = light.Sample_Li(scene, &isect, &wi, &pdf);
     float cosp = glm::max(0.f, dot(isect.normal, wi));
     Spectrum f = isect.bsdf->f(-wo, wi);
-    return Li * f * cosp / pdf;
+    Ld += Li * f * cosp / pdf;
+    // TODO: MIS
+    return Ld;
 }
