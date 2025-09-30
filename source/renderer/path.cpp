@@ -10,7 +10,7 @@ vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f;
 
 PathRenderer::PathRenderer()
 {
-    maxTraces = 12;
+    maxTraces = 1;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 
@@ -57,11 +57,11 @@ void PathRenderer::Parallel()
 #ifdef DEBUG
                     curX = x;
                     curY = y;
-                    // if (x >= 200 && x <= 300 && y >= 200 && y <= 400) {
+                    if (y >= 150) {
                     vec3 color = PathTracing(x, y).c;
                     sppBuffer[num] += vec4(pow(color, vec3(GammaInv)), 1.0);
                         pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
-                    // }
+                    }
 #else
                     vec3 color = PathTracing(x, y).c;
                     sppBuffer[num] += vec4(pow(color, vec3(GammaInv)), 1.0);
@@ -137,6 +137,7 @@ Spectrum PathRenderer::Li(const Ray& r)
     Spectrum beta(1.f);
     Interaction isect;
     Ray ray = r;
+    bool specularBounce = false;
     for (int bounce = 0; bounce < 3/*bounces*/; bounce++) {
         isect.tMin = tMin;
         isect.tMax = tMax;
@@ -144,19 +145,14 @@ Spectrum PathRenderer::Li(const Ray& r)
         if (!scene->Intersect(ray, isect)) {
             Lo += beta * vec3(A);
             break;
-        } else if (bounce == 0 && isect.mat->IsEmissive()) {
+        } else if ((bounce == 0 || specularBounce) && isect.mat->IsEmissive()) {
             Lo += beta * vec3(isect.mat->GetEmission());
-            // break;
         } else if (float back = dot(-ray.d, isect.normal); back <= 0) {
             Lo += beta * vec3(isect.mat->GetAlbedo()) * abs(back);
             break;
         }
-
-        if (bounce == 0) {
-            // process specular 
-        }
         Lo += beta * EstimateDirect(ray.d, isect);
-
+        
         // indirect
         Sampler s;
         float pdf;
@@ -172,6 +168,7 @@ Spectrum PathRenderer::Li(const Ray& r)
         vec3 n = isect.normal;
         beta *= f * abs(dot(wi, n)) / pdf;
         ray = Ray{ isect.p , wi };
+        specularBounce =  isect.mat->IsSpecular();
         /*
             recursive version like:
             Lo += f * Le * cos / pdf;

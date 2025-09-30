@@ -17,6 +17,10 @@ public:
          m->emissiveFactor[2] > 0.0f);*/
         return emissiveStrength != 0.0;
     }
+    inline bool IsSpecular() const {
+        auto& pbr = m->pbrMetallicRoughness;
+        return pbr.roughnessFactor < 1e-6;
+    }
     inline float GetEmissiveStrength() const { return emissiveStrength; }
     virtual vec4 GetAlbedo(const vec2& uv) const;
     virtual vec4 GetAlbedo() const { return baseColorFactor; };
