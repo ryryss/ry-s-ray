@@ -6,10 +6,9 @@ using namespace std;
 
 void Scene::AddModel(string file)
 {
-    models.push_back(Model(file));
-    ParseModel(models.back());
-    // temp solution
-    bvh = make_unique<BVH>(this, triangles.size());
+    shared_ptr<Model> model = make_unique<Model>(file);
+    ParseModel(model);
+    models.push_back(model);
 }
 
 void Scene::DelModel()
@@ -40,39 +39,9 @@ const Light& Scene::SampleOneLight()
 
 bool Scene::Intersect(const Ray& r, Interaction& isect) const
 {
-    vector<uint64_t> idx;
-    bvh->TraverseBVH(idx, r, bvh->root);
-    return Intersect(r, idx, isect);
-}
-
-bool ry::Scene::Intersect(const Ray& r, const vector<uint64_t>& idx, Interaction& isect) const
-{
     bool hit = false;
-    float t, gu, gv;
-    // for (int i = 0; i < triangles.size(); i++) {
-    for (auto& i : idx) {
-        auto& tri = triangles[i];
-        auto& a = vertices[tri.vertIdx[0]].pos;
-        auto& b = vertices[tri.vertIdx[1]].pos;
-        auto& c = vertices[tri.vertIdx[2]].pos;
-        if (Moller_Trumbore(r.o, r.d, a, b, c, t, gu, gv) &&
-            t > isect.tMin && t < isect.tMax) {
-            isect.tMax = t;
-            isect.bary = { 1 - gu - gv, gu, gv };
-            isect.p = r.o + t * r.d;
-            isect.tri = &tri;
-            hit = true;
-        }
-    }
-    if (hit) {
-        auto& a = vertices[isect.tri->vertIdx[0]];
-        auto& b = vertices[isect.tri->vertIdx[1]];
-        auto& c = vertices[isect.tri->vertIdx[2]];
-        isect.normal = normalize(isect.bary[0] * a.normal
-            + isect.bary[1] * b.normal + isect.bary[2] * c.normal);
-
-        isect.mat = &materials[isect.tri->material];
-        isect.bsdf = isect.mat->CreateBSDF(this, &isect);
+    for (auto& model : models) {
+        hit |= model->Intersect(r, isect);
     }
     return hit;
 }
@@ -82,33 +51,15 @@ const Light* ry::Scene::IntersectEmissive(const Ray& r, Interaction& isect) cons
     const Light* light = nullptr;
     for (int i = 0; i < lights.size(); i++) {
         auto& l = lights[i];
-        if (Intersect(r, l.triangles, isect)) {
+        if (l.model->Intersect(r, l.triangles, isect)) {
             light = &l;
         }
     }
     return light;
 }
 
-void Scene::ParseModel(const Model& model)
-{
-    int matCnt = materials.size();
-    for (auto tri : model.triangles) {
-        tri.material += matCnt;
-        tri.vertIdx[0] += vertices.size();
-        tri.vertIdx[1] += vertices.size();
-        tri.vertIdx[2] += vertices.size();
-    }
-    triangles.insert(triangles.begin(), model.triangles.begin(), model.triangles.end());
-    
-    cameras.insert(cameras.begin(), model.cameras.begin(), model.cameras.end());
-    
-    for (auto light : model.lights) {
-        for (auto& i : light.triangles) {
-            i += triangles.size();
-        }
-    }
-    lights.insert(lights.begin(), model.lights.begin(), model.lights.end());
-
-    materials.insert(materials.begin(), model.materials.begin(), model.materials.end());
-    vertices.insert(vertices.begin(), model.vertices.begin(), model.vertices.end());
+void Scene::ParseModel(std::shared_ptr<Model> model)
+{ 
+    cameras.insert(cameras.begin(), model->cameras.begin(), model->cameras.end());
+    lights.insert(lights.begin(), model->lights.begin(), model->lights.end());
 }

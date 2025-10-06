@@ -1,9 +1,9 @@
 #include "bvh.h"
-#include "scene.h"
+#include "model.h"
 using namespace std;
 using namespace ry;
 
-BVH::BVH(Scene* s, uint64_t geomCnt, int m) : scene(s), maxLeafSize(m) {
+BVH::BVH(Model* m, uint64_t geomCnt, int max) : model(m), maxLeafSize(max) {
     std::vector<uint64_t> indices(geomCnt);
     std::iota(indices.begin(), indices.end(), 0);
     root = BuildNode(indices);
@@ -12,10 +12,10 @@ BVH::BVH(Scene* s, uint64_t geomCnt, int m) : scene(s), maxLeafSize(m) {
 void BVH::ComputeBounds(BVHNode& node, const vector<uint64_t>& indices)
 {
     for (int i = 0; i < indices.size(); i++) {
-        auto& tri = scene->triangles[indices[i]];
-        const auto& a = scene->GetVertex(tri.vertIdx[0])->pos;
-        const auto& b = scene->GetVertex(tri.vertIdx[1])->pos;
-        const auto& c = scene->GetVertex(tri.vertIdx[2])->pos;
+        auto& tri = model->triangles[indices[i]];
+        const auto& a = model->GetVertex(tri.vertIdx[0])->pos;
+        const auto& b = model->GetVertex(tri.vertIdx[1])->pos;
+        const auto& c = model->GetVertex(tri.vertIdx[2])->pos;
         node.box.expand(a);
         node.box.expand(b);
         node.box.expand(c);
@@ -63,15 +63,15 @@ bool BVH::SAHSplit(const shared_ptr<BVHNode> node, const vector<uint64_t>& indic
     vector<BucketInfo> buckets(bucketCount);
 
     for (int i = 0; i < indices.size(); i++) {
-        auto& tri = scene->triangles[indices[i]];
+        auto& tri = model->triangles[indices[i]];
         float relative = (tri.c[axis] - node->cBox.min[axis]) /
             (node->cBox.max[axis] - node->cBox.min[axis] + 1e-6f);
         int count = clamp(int(relative * bucketCount), 0, bucketCount - 1);
         buckets[count].count++;
         AABB box;
-        const auto& a = scene->GetVertex(tri.vertIdx[0])->pos;
-        const auto& b = scene->GetVertex(tri.vertIdx[1])->pos;
-        const auto& c = scene->GetVertex(tri.vertIdx[2])->pos;
+        const auto& a = model->GetVertex(tri.vertIdx[0])->pos;
+        const auto& b = model->GetVertex(tri.vertIdx[1])->pos;
+        const auto& c = model->GetVertex(tri.vertIdx[2])->pos;
         box.expand(a);
         box.expand(b);
         box.expand(c);
@@ -112,7 +112,7 @@ bool BVH::SAHSplit(const shared_ptr<BVHNode> node, const vector<uint64_t>& indic
     }
     // split idx
     for (int i = 0; i < indices.size(); i++) {
-        auto& tri = scene->triangles[indices[i]];
+        auto& tri = model->triangles[indices[i]];
         float relative = (tri.c[axis] - node->cBox.min[axis]) /
             (node->cBox.max[axis] - node->cBox.min[axis] + 1e-6f);
         int b = clamp(int(relative * bucketCount), 0, bucketCount - 1);
@@ -126,7 +126,7 @@ void BVH::MidSplit(const shared_ptr<BVHNode> node, vector<uint64_t>& indices, ve
     // chose a axis
     auto axis = node->SplitAxis();
     // use triangle centroid to sort
-    auto& tris = scene->triangles;
+    auto& tris = model->triangles;
     std::sort(indices.begin(), indices.end(),
         [&](uint64_t a, uint64_t b) {
             return tris[a].c[axis] < tris[b].c[axis];

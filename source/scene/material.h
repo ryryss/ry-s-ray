@@ -2,11 +2,11 @@
 #include "bsdf.h"
 namespace ry{
 class Interaction;
-class Scene;
+class Model;
 class Material {
 public:
     Material() {}
-    void SetRawPtr(gltf::Model* pModel, gltf::Material* pMat);
+    void SetRawPtr(Model* pModel, gltf::Material* pMat);
     inline void SetEmissiveInfo(const vec4& factor, float strength) {
         baseColorFactor = factor;
         emissiveStrength = strength;
@@ -18,21 +18,21 @@ public:
         return emissiveStrength != 0.0;
     }
     inline bool IsSpecular() const {
-        auto& pbr = m->pbrMetallicRoughness;
+        auto& pbr = raw->pbrMetallicRoughness;
         return pbr.roughnessFactor < 1e-6;
     }
     inline float GetEmissiveStrength() const { return emissiveStrength; }
     virtual vec4 GetAlbedo(const vec2& uv) const;
     virtual vec4 GetAlbedo() const { return baseColorFactor; };
     virtual vec4 GetEmission() const { return baseColorFactor * emissiveStrength; };
-    std::unique_ptr<BSDF> CreateBSDF(const Scene* s, const Interaction* isect) const;
+    std::unique_ptr<BSDF> CreateBSDF(const Interaction* isect) const;
 private:
     vec4 GetTexture(const vec2& uv) const;
 
-    gltf::Material* m = nullptr;
-    gltf::Model* model = nullptr;
+    gltf::Material* raw = nullptr;
+    Model* model = nullptr;
     // TODO texture and sample
-    gltf::Image* image = nullptr;
+    const gltf::Image* image = nullptr;
 
     vec4 baseColorFactor;
     float emissiveStrength = 0.0;

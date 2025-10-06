@@ -10,7 +10,7 @@ vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f;
 
 PathRenderer::PathRenderer()
 {
-    maxTraces = 12;
+    maxTraces = 1;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 
@@ -57,11 +57,11 @@ void PathRenderer::Parallel()
 #ifdef DEBUG
                     curX = x;
                     curY = y;
-                    if (y >= 150) {
+                    // if (y >= 150) {
                     vec3 color = PathTracing(x, y).c;
                     sppBuffer[num] += vec4(pow(color, vec3(GammaInv)), 1.0);
                         pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
-                    }
+                    // }
 #else
                     vec3 color = PathTracing(x, y).c;
                     sppBuffer[num] += vec4(pow(color, vec3(GammaInv)), 1.0);
@@ -189,7 +189,7 @@ Spectrum PathRenderer::EstimateDirect(const vec3& wo, const Interaction& isect)
     Sampler s;
     vec3 wi;
     float pdf;
-    Spectrum Li = light.Sample_Li(scene, &isect, &wi, &pdf);
+    Spectrum Li = light.Sample_Li(&isect, &wi, &pdf);
     float cosp = glm::max(0.f, dot(isect.normal, wi));
     Spectrum f = isect.bsdf->f(-wo, wi);
     Ld += Li * f * cosp / pdf;

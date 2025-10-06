@@ -2,7 +2,7 @@
 #include "geometry.hpp"
 #include "pch.h"
 namespace ry {
-class Scene;
+class Model;
 // AABB
 struct AABB {
     AABB() {
@@ -63,7 +63,7 @@ struct BVHNode {
 class BVH {
 public:
     // triangles should outlive BVH (we store indices)
-    BVH(Scene* s, uint64_t geomCnt, int m = 4);
+    BVH(Model* m, uint64_t geomCnt, int max = 4);
 
     void ComputeBounds(BVHNode& node, const std::vector<uint64_t>& indices);
     std::shared_ptr<BVHNode> BuildNode(std::vector<uint64_t>& indices);
@@ -76,14 +76,14 @@ public:
 private:
     void PrintIdx(std::shared_ptr<BVHNode> node) {
 #ifdef DEBUG
-        std::cout << "build leaf tri indices : ";
+        /*std::cout << "build leaf tri indices : ";
         for (auto& i : node->indices) {
             std::cout << i << " ";
         }
-        std::cout << std::endl;
-#endif // DEBUG
+        std::cout << std::endl;*/
+#endif
     }
-    Scene* scene;
+    Model* model;
     uint8_t maxLeafSize;
     uint64_t leafCnt = 0;
 };

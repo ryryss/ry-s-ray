@@ -1,4 +1,5 @@
 #pragma once
+#include "bvh.h"
 #include "geometry.hpp"
 #include "light.h"
 #include "material.h"
@@ -8,12 +9,25 @@ class Scene;
 class Model {
 public:
     Model(std::string file) { LoadFromFile(file); };
+    bool Intersect(const Ray& r, const std::vector<uint64_t>& idx, Interaction& isect) const;
+    bool Intersect(const Ray& r, Interaction& isect) const;
+    inline const Vertex* GetVertex(uint64_t i) const {
+        return &vertices[i];
+    };
+
+    inline const Triangle* GetTriangle(uint64_t i) const {
+        return &triangles[i];
+    };
+
+    inline const gltf::Model& GetRaw() const {
+        return raw;
+    }
 private:
     inline bool IsEmissive(int i) {
-        return (i >= 0 && !(model.materials.size() <= 0) &&
-               (model.materials[i].emissiveFactor[0] > 0.0f ||
-                model.materials[i].emissiveFactor[1] > 0.0f ||
-                model.materials[i].emissiveFactor[2] > 0.0f));
+        return (i >= 0 && !(raw.materials.size() <= 0) &&
+               (raw.materials[i].emissiveFactor[0] > 0.0f ||
+                raw.materials[i].emissiveFactor[1] > 0.0f ||
+                raw.materials[i].emissiveFactor[2] > 0.0f));
     }
 
     bool LoadFromFile(const std::string& file);
@@ -37,12 +51,14 @@ private:
     std::vector <Camera> cameras;
     std::vector <Material> materials;
     // std::vector <Material> mats;
-    gltf::Model model;
+    gltf::Model raw;
     std::vector<Node> nodes;
     std::vector<uint32_t> roots;
     std::vector<Vertex> vertices;
     std::vector<Triangle> triangles;
 
+    std::unique_ptr<BVH> bvh;
+    friend class BVH;
     friend class Scene;
 };
 }

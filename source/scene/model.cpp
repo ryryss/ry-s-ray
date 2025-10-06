@@ -2,6 +2,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "model.h"
+#include "bvh.h"
 using namespace ry;
 using namespace std;
 using namespace glm;
@@ -12,7 +13,7 @@ bool Model::LoadFromFile(const string& file)
     string err;
     string warn;
 
-    bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, file);
+    bool ret = loader.LoadBinaryFromFile(&raw, &err, &warn, file);
     if (!ret) {
         cout << "Warn: " << warn << endl;
         cerr << "Err: " << err << endl;
@@ -22,25 +23,27 @@ bool Model::LoadFromFile(const string& file)
     }
     ParseNode();
     for (int i = 0; i < nodes.size(); i++) {
-        const auto& n = model.nodes[i];
+        const auto& n = raw.nodes[i];
         const auto& node = nodes[i];
         ParseMesh(i);
         ParseCamera(i);
         ParseLight(i);
     }
+    // temp solution
+    bvh = make_unique<BVH>(this, triangles.size());
     return true;
 }
 
 void Model::ParseNode()
 {
-    if (model.scenes.size() > 1) {
+    if (raw.scenes.size() > 1) {
         throw ("now just sup 1 cam 1 scene");
     }
 
-    nodes.resize(model.nodes.size());
-    for (const auto& s : model.scenes) {
+    nodes.resize(raw.nodes.size());
+    for (const auto& s : raw.scenes) {
         for (const auto& i : s.nodes) {
-            const auto& n = model.nodes[i]; // root node
+            const auto& n = raw.nodes[i]; // root node
             roots.push_back(i);
             auto& p = nodes[i];        // parent and root
             p.name = n.name;
@@ -53,14 +56,14 @@ void Model::ParseNode()
 
 void Model::ParseMesh(int num)
 {
-    const auto& n = model.nodes[num];
+    const auto& n = raw.nodes[num];
     if (n.mesh < 0) {
         return;
     }
     const auto& node = nodes[num];
     const mat4& m = node.m;
 
-    const auto& mesh = model.meshes[n.mesh];
+    const auto& mesh = raw.meshes[n.mesh];
     for (const auto& p : mesh.primitives) {
         ParsePrimitive(p, m);
     }
@@ -68,14 +71,14 @@ void Model::ParseMesh(int num)
 
 void Model::ParseChildNode(int num)
 {
-    const auto& n = model.nodes[num];
+    const auto& n = raw.nodes[num];
     auto& p = nodes[num]; // parent
     p.c.resize(n.children.size());
     for (int i = 0; i < n.children.size(); i++) {
         int c_num = n.children[i];
         p.c[i] = c_num;
         auto& c = nodes[c_num]; // child node
-        c.name = model.nodes[c_num].name;
+        c.name = raw.nodes[c_num].name;
         c.i = num;
         auto trans = GetNodeMat(c_num);
         c.m = p.m * trans * c.m; // apply mat
@@ -85,14 +88,14 @@ void Model::ParseChildNode(int num)
 
 void Model::ParseCamera(int num)
 {
-    const auto& n = model.nodes[num];
+    const auto& n = raw.nodes[num];
     if (n.camera < 0) {
         return;
     }
     const auto& node = nodes[num];
     auto cam = Camera(node);
 
-    const auto& c = model.cameras[n.camera];
+    const auto& c = raw.cameras[n.camera];
     cam.type = c.type;
     if (cam.type == "perspective") {
         cam.znear = c.perspective.znear;
@@ -126,14 +129,14 @@ void Model::ParseCamera(int num)
 
 void Model::ParseLight(int num)
 {
-    const auto& n = model.nodes[num];
+    const auto& n = raw.nodes[num];
     if (n.light < 0) {
         return;
     }
     const auto& node = nodes[num];
     auto light = Light(node);
 
-    const auto& l = model.lights[n.light];
+    const auto& l = raw.lights[n.light];
     light.type = l.type;
     // lgt.intensity = l.intensity;
     // lgt.color = { l.color[0], l.color[1], l.color[2] };
@@ -148,7 +151,7 @@ void Model::ParseMaterial(int num)
         return;
     }
     Material mat;
-    mat.SetRawPtr(&model, &model.materials[num]);
+    mat.SetRawPtr(this, &raw.materials[num]);
     // In most cases, the rendering is based on triangles
     // so there is no need to record the material index for each vertex.
     materials.push_back(mat);
@@ -161,7 +164,7 @@ void Model::ParseEmissiveMaterial(int num, const vector<uint64_t>& ids)
     }
     // TODO emissive texture
     // get emissive info
-    auto& m = model.materials[num];
+    auto& m = raw.materials[num];
     auto& pbr = m.pbrMetallicRoughness;
     float emissiveStrength = 0.0;
     if (auto it = m.extensions.find("KHR_materials_emissive_strength");
@@ -175,7 +178,7 @@ void Model::ParseEmissiveMaterial(int num, const vector<uint64_t>& ids)
     auto& material = materials.back();
     material.SetEmissiveInfo(baseColorFactor, emissiveStrength);
     // set emissive face as a area light
-    Light light;
+    Light light(this);
     light.emissiveStrength = emissiveStrength;
     light.I = vec3(baseColorFactor);
     light.name = "AreaLight";
@@ -198,9 +201,9 @@ std::vector<uint32_t> Model::ParseVertIdx(const gltf::Primitive& p)
     if (p.indices < 0) {
         return res;
     }
-    const auto& acc = model.accessors[p.indices];
-    const auto& v = model.bufferViews[acc.bufferView];
-    const auto& b = model.buffers[v.buffer];
+    const auto& acc = raw.accessors[p.indices];
+    const auto& v = raw.bufferViews[acc.bufferView];
+    const auto& b = raw.buffers[v.buffer];
     const void* data = &b.data[v.byteOffset + acc.byteOffset];
     res.resize(acc.count);
 
@@ -240,9 +243,9 @@ void Model::ParsePrimitive(const gltf::Primitive& p, const mat4& m)
         vert[i].pos = m * vec4(vert[i].pos, 1.0f);
         vert[i].normal = normalize(n_m * vert[i].normal);
 #ifdef DEBUG
-        cout << "add vert pos = ";
-        PrintVec(vert[i].pos);
-#endif // DEBUG
+        // cout << "add vert pos = ";
+        // PrintVec(vert[i].pos);
+#endif
     }
     vertices.insert(vertices.end(), vert.begin(), vert.end());
     
@@ -283,13 +286,13 @@ void Model::ParseTexTureCoord(const gltf::Primitive& p, std::vector<Vertex>& ver
         cout << "no texture" << endl;
         return;
     }
-    const auto& acc = model.accessors[it->second];
-    const auto& v = model.bufferViews[acc.bufferView];
-    const auto& b = model.buffers[v.buffer];
+    const auto& acc = raw.accessors[it->second];
+    const auto& v = raw.bufferViews[acc.bufferView];
+    const auto& b = raw.buffers[v.buffer];
     const unsigned char* pData = &b.data[v.byteOffset + acc.byteOffset];
     size_t stride = acc.ByteStride(v);
     for (size_t i = 0; i < acc.count; i++) {
-        if (model.images.size() > 0) {
+        if (raw.images.size() > 0) {
             vec2 uv(0.0f);
             if (acc.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
                 const float* ptr = reinterpret_cast<const float*>(pData + i * stride);
@@ -306,7 +309,7 @@ void Model::ParseTexTureCoord(const gltf::Primitive& p, std::vector<Vertex>& ver
             }
             vert[i].uv = uv;
             //direct apply uv
-            const auto& image = model.images[0]; // simple get first texture
+            const auto& image = raw.images[0]; // simple get first texture
             int w = image.width;
             const unsigned char* pixels = image.image.data();
             float u = vert[i].uv[0];
@@ -331,9 +334,9 @@ void Model::ParseNormal(const gltf::Primitive& p, std::vector<Vertex>& vert)
         cout << "no normal" << endl;
         return;
     }
-    const auto& acc = model.accessors[it->second];
-    const auto& v = model.bufferViews[acc.bufferView];
-    const auto& b = model.buffers[v.buffer];
+    const auto& acc = raw.accessors[it->second];
+    const auto& v = raw.bufferViews[acc.bufferView];
+    const auto& b = raw.buffers[v.buffer];
     const unsigned char* pData = &b.data[v.byteOffset + acc.byteOffset];
     size_t stride = acc.ByteStride(v);
     for (size_t i = 0; i < acc.count; i++) {
@@ -365,9 +368,9 @@ void Model::ParseVertColor(const gltf::Primitive& p, std::vector<Vertex>& vert)
         cout << "no vert color" << endl;
         return;
     }
-    const auto& acc = model.accessors[it->second];
-    const auto& v = model.bufferViews[acc.bufferView];
-    const auto& b = model.buffers[v.buffer];
+    const auto& acc = raw.accessors[it->second];
+    const auto& v = raw.bufferViews[acc.bufferView];
+    const auto& b = raw.buffers[v.buffer];
     const unsigned char* pData = &b.data[v.byteOffset + acc.byteOffset];
     size_t stride = acc.ByteStride(v);
     for (size_t i = 0; i < acc.count; i++) {
@@ -419,9 +422,9 @@ void Model::ParsePosition(const gltf::Primitive& p, std::vector<Vertex>& vert)
         cout << "no vertex" << endl;
         return;
     }
-    const auto& acc = model.accessors[it->second];
-    const auto& v = model.bufferViews[acc.bufferView];
-    const auto& b = model.buffers[v.buffer];
+    const auto& acc = raw.accessors[it->second];
+    const auto& v = raw.bufferViews[acc.bufferView];
+    const auto& b = raw.buffers[v.buffer];
     const unsigned char* pData = &b.data[v.byteOffset + acc.byteOffset];
     size_t stride = acc.ByteStride(v);
     vert.resize(acc.count);
@@ -453,7 +456,7 @@ mat4 Model::GetNodeMat(int num)
     if (num < 0) {
         return t;
     }
-    const auto& n = model.nodes[num];
+    const auto& n = raw.nodes[num];
     if (n.matrix.size() == 16) {
         t = make_mat4(n.matrix.data());
         return t;
@@ -472,4 +475,43 @@ mat4 Model::GetNodeMat(int num)
         t = T * R * S;
     }
     return t;
+}
+
+bool Model::Intersect(const Ray& r, const vector<uint64_t>& idx, Interaction& isect) const
+{
+    bool hit = false;
+    float t, gu, gv;
+    // for (int i = 0; i < triangles.size(); i++) {
+    for (auto& i : idx) {
+        auto& tri = triangles[i];
+        auto& a = vertices[tri.vertIdx[0]].pos;
+        auto& b = vertices[tri.vertIdx[1]].pos;
+        auto& c = vertices[tri.vertIdx[2]].pos;
+        if (Moller_Trumbore(r.o, r.d, a, b, c, t, gu, gv) &&
+            t > isect.tMin && t < isect.tMax) {
+            isect.tMax = t;
+            isect.bary = { 1 - gu - gv, gu, gv };
+            isect.p = r.o + t * r.d;
+            isect.tri = &tri;
+            hit = true;
+        }
+    }
+    if (hit) {
+        auto& a = vertices[isect.tri->vertIdx[0]];
+        auto& b = vertices[isect.tri->vertIdx[1]];
+        auto& c = vertices[isect.tri->vertIdx[2]];
+        isect.normal = normalize(isect.bary[0] * a.normal
+            + isect.bary[1] * b.normal + isect.bary[2] * c.normal);
+
+        isect.mat = &materials[isect.tri->material];
+        isect.bsdf = isect.mat->CreateBSDF(&isect);
+    }
+    return hit;
+}
+
+bool Model::Intersect(const Ray& r, Interaction& isect) const
+{
+    vector<uint64_t> idx;
+    bvh->TraverseBVH(idx, r, bvh->root);
+    return Intersect(r, idx, isect);
 }
