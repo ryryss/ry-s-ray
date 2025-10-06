@@ -292,7 +292,7 @@ void Model::ParseImage()
         mipmap.height = i.height;
         mipmap.pixels.resize(i.width * i.height * 4);
         for (int j = 0; j < mipmap.pixels.size(); j++) {
-            mipmap.pixels[j] = i.image[j] / 255;
+            mipmap.pixels[j] = (float)i.image[j] / 255;
         }
 
         auto& mipmaps = image.mm;

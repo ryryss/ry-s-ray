@@ -10,7 +10,7 @@ vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f;
 
 PathRenderer::PathRenderer()
 {
-    maxTraces = 1;
+    maxTraces = 16;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 
@@ -59,12 +59,12 @@ void PathRenderer::Parallel()
                     curY = y;
                     // if (y >= 150) {
                     vec3 color = PathTracing(x, y).c;
-                    sppBuffer[num] += vec4(pow(color, vec3(GammaInv)), 1.0);
+                    sppBuffer[num] += vec4(pow(color, vec3(GammaSRGB)), 1.0);
                         pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
                     // }
 #else
                     vec3 color = PathTracing(x, y).c;
-                    sppBuffer[num] += vec4(pow(color, vec3(GammaInv)), 1.0);
+                    sppBuffer[num] += vec4(pow(color, vec3(GammaSRGB)), 1.0);
                     pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
 #endif
                 }
@@ -78,7 +78,7 @@ void PathRenderer::Parallel()
             for (uint16_t x = 0; x < scrw; x++) {
                 uint32_t num = y * scrw + x;
                 vec3 color = PathTracing(x, y).c;
-                sppBuffer[num] += vec4(pow(color, vec3(GammaInv)), 1.0);
+                sppBuffer[num] += vec4(pow(color, vec3(GammaSRGB)), 1.0);
                 pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
             }
         }

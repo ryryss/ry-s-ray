@@ -54,5 +54,7 @@ vec4 Material::GetTexture(const vec2& uv) const
 
     const auto& image = model->GetImage(texture->source);
     const auto& sampler = model->GetRaw().samplers[texture->sampler];
-    return TextureSampler::SampleTexture(&image, &sampler, uv, 0);
+    auto color = TextureSampler::SampleTexture(&image, &sampler, uv, 0);
+    // return mix( color / 12.92, pow((color + 0.055) / 1.055, vec3(2.4)), step(0.04045, color) );
+    return pow(color, vec4(GammaLinear));
 }
