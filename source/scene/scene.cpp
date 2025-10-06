@@ -1,6 +1,6 @@
 #include "scene.h"
 #include "interaction.hpp"
-#include "sample.hpp"
+#include "sampler.hpp"
 using namespace ry;
 using namespace std;
 

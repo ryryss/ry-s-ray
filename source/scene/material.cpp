@@ -9,7 +9,7 @@ void Material::SetRawPtr(Model* pModel, gltf::Material* pMat)
     raw = pMat;
     auto& pbr = raw->pbrMetallicRoughness;
     if (auto idx = pbr.baseColorTexture.index; idx >= 0) {
-        image = &model->GetRaw().images[idx];
+        texture = &model->GetRaw().textures[idx];
     }
     baseColorFactor = vec4(pbr.baseColorFactor[0], pbr.baseColorFactor[1],
         pbr.baseColorFactor[2], pbr.baseColorFactor[3]);
@@ -17,7 +17,7 @@ void Material::SetRawPtr(Model* pModel, gltf::Material* pMat)
 
 vec4 Material::GetAlbedo(const vec2& uv) const
 {
-    return image ? baseColorFactor * GetTexture(uv) : baseColorFactor;
+    return texture ? baseColorFactor * GetTexture(uv) : baseColorFactor;
 }
 
 unique_ptr<BSDF> Material::CreateBSDF(const Interaction* isect) const
@@ -48,18 +48,11 @@ unique_ptr<BSDF> Material::CreateBSDF(const Interaction* isect) const
 
 vec4 Material::GetTexture(const vec2& uv) const
 {
-    if (image == nullptr) {
+    if (texture == nullptr) {
         return vec4(1.0f);
     }
-    uint32_t x = uv[0] * (image->width - 1);
-    uint32_t y = uv[1] * (image->height - 1); // no need reverse
-    // int((1.0f - v) * (image.height - 1));
-    int idx = (y * image->width + x) * image->component;
-    auto pixel = image->image.data();
-    vec3 color = { pixel[idx + 0] / 255.0f,
-                   pixel[idx + 1] / 255.0f,
-                   pixel[idx + 2] / 255.0f};
 
-    color = pow(color, vec3(Gamma));
-    return { color, (image->component == 4) ? pixel[idx + 3] / 255.0f : 1.0f };
+    const auto& image = model->GetImage(texture->source);
+    const auto& sampler = model->GetRaw().samplers[texture->sampler];
+    return TextureSampler::SampleTexture(&image, &sampler, uv, 0);
 }

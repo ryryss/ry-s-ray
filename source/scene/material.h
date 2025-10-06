@@ -31,8 +31,7 @@ private:
 
     gltf::Material* raw = nullptr;
     Model* model = nullptr;
-    // TODO texture and sample
-    const gltf::Image* image = nullptr;
+    const gltf::Texture* texture = nullptr;
 
     vec4 baseColorFactor;
     float emissiveStrength = 0.0;

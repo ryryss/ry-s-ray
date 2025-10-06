@@ -1,6 +1,6 @@
 ﻿#include "path.h"
 #include "interaction.hpp"
-#include "sample.hpp"
+#include "sampler.hpp"
 #include "task.h"
 using namespace std;
 using namespace ry;

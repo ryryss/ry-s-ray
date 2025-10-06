@@ -3,6 +3,7 @@
 #include "geometry.hpp"
 #include "light.h"
 #include "material.h"
+#include "texture.hpp"
 namespace ry {
 class Scene;
 // tinygltf wrapper
@@ -22,6 +23,10 @@ public:
     inline const gltf::Model& GetRaw() const {
         return raw;
     }
+
+    const Image& GetImage(int i) const {
+        return images[i];
+    }
 private:
     inline bool IsEmissive(int i) {
         return (i >= 0 && !(raw.materials.size() <= 0) &&
@@ -32,6 +37,7 @@ private:
 
     bool LoadFromFile(const std::string& file);
     void ParseNode();
+    void ParseImage();
     void ParseMesh(int num);
     void ParseChildNode(int num);
     void ParseCamera(int num);
@@ -52,6 +58,7 @@ private:
     std::vector <Material> materials;
     // std::vector <Material> mats;
     gltf::Model raw;
+    std::vector<Image> images;
     std::vector<Node> nodes;
     std::vector<uint32_t> roots;
     std::vector<Vertex> vertices;

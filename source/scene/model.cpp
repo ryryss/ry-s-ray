@@ -29,6 +29,7 @@ bool Model::LoadFromFile(const string& file)
         ParseCamera(i);
         ParseLight(i);
     }
+    ParseImage();
     // temp solution
     bvh = make_unique<BVH>(this, triangles.size());
     return true;
@@ -274,6 +275,61 @@ void Model::ParsePrimitive(const gltf::Primitive& p, const mat4& m)
 
     if (emissive) {
         ParseEmissiveMaterial(p.material, emissiveTris);
+    }
+}
+
+void Model::ParseImage()
+{
+    for (auto i : raw.images) {
+        images.push_back(Image());
+        auto& image = images.back();
+        int levels = 1 + (int)floor(std::log2(std::max(i.width, i.height)));
+        image.mm.reserve(levels);
+        image.mm.push_back(MipMap());
+
+        auto& mipmap = image.mm.back();
+        mipmap.width = i.width;
+        mipmap.height = i.height;
+        mipmap.pixels.resize(i.width * i.height * 4);
+        for (int j = 0; j < mipmap.pixels.size(); j++) {
+            mipmap.pixels[j] = i.image[j] / 255;
+        }
+
+        auto& mipmaps = image.mm;
+        for (int j = 1; j < levels; j++) {
+            const MipMap& prev = mipmaps[j - 1];
+            int w = std::max(1, prev.width / 2);
+            int h = std::max(1, prev.height / 2);
+
+            mipmaps.push_back(MipMap());
+            auto& level = mipmaps.back();
+            level.width = w;
+            level.height = h;
+            level.pixels.resize(w * h * 4); // RGBA8
+
+            // downsample
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < w; x++) {
+                    int r = 0, g = 0, b = 0, a = 0;
+                    for (int dy = 0; dy < 2; dy++) {
+                        for (int dx = 0; dx < 2; dx++) {
+                            int srcX = std::min(prev.width - 1, x * 2 + dx);
+                            int srcY = std::min(prev.height - 1, y * 2 + dy);
+                            int idx = (srcY * prev.width + srcX) * 4;
+                            r += prev.pixels[idx + 0];
+                            g += prev.pixels[idx + 1];
+                            b += prev.pixels[idx + 2];
+                            a += prev.pixels[idx + 3];
+                        }
+                    }
+                    int dstIdx = (y * w + x) * 4;
+                    level.pixels[dstIdx + 0] = r / 4;
+                    level.pixels[dstIdx + 1] = g / 4;
+                    level.pixels[dstIdx + 2] = b / 4;
+                    level.pixels[dstIdx + 3] = a / 4;
+                }
+            }
+        }
     }
 }
 

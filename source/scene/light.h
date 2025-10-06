@@ -1,7 +1,7 @@
 #pragma once
 #include "node.hpp"
 #include "interaction.hpp"
-#include "sample.hpp"
+#include "sampler.hpp"
 namespace ry{
 class Model;
 
