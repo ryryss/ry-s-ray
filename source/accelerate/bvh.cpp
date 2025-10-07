@@ -47,6 +47,7 @@ std::shared_ptr<BVHNode> BVH::BuildNode(vector<uint64_t>& indices)
         PrintIdx(node);
         return node;
     }
+    // MidSplit(node, indices, left, right);
     node->l = BuildNode(left);
     node->r = BuildNode(right);
     return node;

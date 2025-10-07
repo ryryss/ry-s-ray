@@ -32,7 +32,7 @@ struct AABB {
             }
             tmin = std::fmax(t0 ,tmin); // enter
             tmax = std::fmin(t1, tmax); // leave
-            if (tmax <= tmin) {
+            if (tmax < tmin) {
                 return false;
             }
         }

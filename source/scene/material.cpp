@@ -36,13 +36,13 @@ unique_ptr<BSDF> Material::CreateBSDF(const Interaction* isect) const
         if (!diffuseColor.IsBlack()) {
             bsdf->Add(make_unique<LambertianReflection>(diffuseColor));
         }
-    } // else { 
+    } else { 
         // GGX/Trowbridge-Reitz
         Spectrum F0 = glm::mix(Spectrum(0.04f).c, vec3(baseColor), pbr.metallicFactor);
         auto distrib = make_shared<TrowbridgeReitzDistribution>(pbr.roughnessFactor, pbr.roughnessFactor);
         auto fresnel = make_shared<FresnelSchlick>(F0);
         bsdf->Add(make_unique<MicrofacetReflection>(vec3(1.0), distrib, fresnel));
-    // }
+    }
     return bsdf;
 }
 
