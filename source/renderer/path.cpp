@@ -10,7 +10,7 @@ vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f;
 
 PathRenderer::PathRenderer()
 {
-    maxTraces = 16;
+    maxTraces = 1;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
 }
 
@@ -29,15 +29,29 @@ void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
         tMin = cam.znear;
         sppBuffer.clear();
         sppBuffer.resize(scrw * scrh);
+        pInfs.resize(scrw * scrh);
     }
-    pixels = p;
+    output = p;
     scene = s;
     for (int i = 1; i <= maxTraces; i++) {
         cout << "start " << currentTraces << "-th rayray" << endl;
         currentTraces = i;
         Parallel();
+        Denoising();
     }
     sppBuffer.clear();
+}
+
+void ry::PathRenderer::Denoising()
+{
+    BilateralFilter filter({3, 3});
+    for (uint16_t y = 0; y < scrh; y++) {
+        for (uint16_t x = 0; x < scrw; x++) {
+            uint32_t num = y * scrw + x;
+            output[num] = vec4(pow(filter.filter(pInfs, { x, y }, {scrw, scrh}), vec3(GammaSRGB)), 1.0);
+            // output[num] = vec4(pow(pInfs[num].color, vec3(GammaSRGB)), 1.0);
+        }
+    }
 }
 
 void PathRenderer::Parallel()
@@ -55,17 +69,15 @@ void PathRenderer::Parallel()
                 for (uint16_t x = 0; x < scrw; x++) {
                     uint32_t num = y * scrw + x;
 #ifdef DEBUG
-                    curX = x;
-                    curY = y;
                     // if (y >= 150) {
-                    vec3 color = PathTracing(x, y).c;
-                    sppBuffer[num] += vec4(pow(color, vec3(GammaSRGB)), 1.0);
-                        pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
+                    auto& color = PathTracing(x, y).c;
+                    sppBuffer[num] += color;
+                    pInfs[num].color = sppBuffer[num] / (float)currentTraces;
                     // }
 #else
-                    vec3 color = PathTracing(x, y).c;
-                    sppBuffer[num] += vec4(pow(color, vec3(GammaSRGB)), 1.0);
-                    pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
+                    auto& color = PathTracing(x, y).c;
+                    sppBuffer[num] += color;
+                    pInfs[num].color = sppBuffer[num] / (float)currentTraces;
 #endif
                 }
             }
@@ -77,9 +89,9 @@ void PathRenderer::Parallel()
         for (uint16_t y = scrh / wCnt * wCnt; y < scrh; y++) {
             for (uint16_t x = 0; x < scrw; x++) {
                 uint32_t num = y * scrw + x;
-                vec3 color = PathTracing(x, y).c;
-                sppBuffer[num] += vec4(pow(color, vec3(GammaSRGB)), 1.0);
-                pixels[num] = vec4(vec3(sppBuffer[num]) / (float)currentTraces, 1.0f);
+                auto& color = PathTracing(x, y).c;
+                sppBuffer[num] += color;
+                pInfs[num].color = sppBuffer[num] / (float)currentTraces;
             }
         }
     }
@@ -127,11 +139,11 @@ Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
 Spectrum PathRenderer::PathTracing(uint32_t x, uint32_t y)
 {
     Spectrum Lo(0.);
-    Lo += Li(RayGeneration(x, y));
+    Lo += Li(RayGeneration(x, y), &pInfs[y * scrw + x]);
     return Lo;
 }
 
-Spectrum PathRenderer::Li(const Ray& r)
+Spectrum PathRenderer::Li(const Ray& r, PixelInfo* pInf)
 {
     Spectrum Lo(0.);
     Spectrum beta(1.f);
@@ -145,9 +157,17 @@ Spectrum PathRenderer::Li(const Ray& r)
         if (!scene->Intersect(ray, isect)) {
             Lo += beta * vec3(A);
             break;
-        } else if ((bounce == 0 || specularBounce) && isect.mat->IsEmissive()) {
+        } 
+        
+        if (bounce == 0) {
+            pInf->normal = isect.normal;
+        }
+        
+        if ((bounce == 0 || specularBounce) && isect.mat->IsEmissive()) {
             Lo += beta * vec3(isect.mat->GetEmission()); // TODO need to cal angle
-        } else if (float back = dot(-ray.d, isect.normal); back <= 0) {
+        }
+        
+        if (float back = dot(-ray.d, isect.normal); back <= 0) {
             Lo += beta * vec3(isect.mat->GetAlbedo()) * abs(back);
             break;
         }

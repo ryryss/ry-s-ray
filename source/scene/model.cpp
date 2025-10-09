@@ -283,7 +283,7 @@ void Model::ParseImage()
     for (auto i : raw.images) {
         images.push_back(Image());
         auto& image = images.back();
-        int levels = 1 + (int)floor(std::log2(std::max(i.width, i.height)));
+        int levels = 1 + std::log2(std::max(i.width, i.height));
         image.mm.reserve(levels);
         image.mm.push_back(MipMap());
 
