@@ -1,5 +1,5 @@
 #pragma once
-#include "filter.hpp"
+#include "denoiser.h"
 #include "scene.h"
 namespace ry{
 class PathRenderer {
@@ -7,6 +7,7 @@ public:
     PathRenderer();
     void Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p);
 private:
+    vec2 ComputeMotionVector(const vec3& worldPos, const mat4& ViewProj_prev, const mat4& ViewProj_curr);
     void Denoising();
     void Parallel();
     Ray RayGeneration(uint32_t x, uint32_t y);
@@ -22,7 +23,9 @@ private:
     uint16_t maxTraces = 1; // spp
     uint16_t currentTraces = 0;
 
-    std::vector<PixelInfo> pInfs;
+    mat4 preProjView;
+    std::unique_ptr<Denoiser> denoiser;
+    std::vector<PixelInfo>* pixelInfos;
 
     uint16_t scrw, scrh;
     Scene* scene;

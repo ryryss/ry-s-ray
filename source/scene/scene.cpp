@@ -21,13 +21,29 @@ void Scene::ProcessCamera(uint16_t scrw, uint16_t scrh)
         if (cam.type == "perspective") {
             cam.ymag = cam.znear * tan(cam.yfov / 2);
             cam.xmag = cam.ymag * cam.aspectRatio;
+
+            cam.projMatrix = glm::perspective(
+                (float)cam.yfov,
+                (float)cam.aspectRatio, cam.znear, cam.zfar
+            );
+            cam.clipToCamera = inverse(cam.projMatrix);
         } else {
             cam.xmag = cam.ymag * scrw / scrh;
+
+            float left = -cam.xmag;
+            float right = cam.xmag;
+            float bottom = -cam.ymag;
+            float top = cam.ymag;
+            cam.projMatrix = glm::ortho(
+                left, right,
+                bottom, top,
+                cam.znear, cam.zfar
+            );
+            cam.clipToCamera = glm::inverse(cam.projMatrix);
         }
-        cam.clipToCamera = glm::inverse(glm::perspective(
-            (float)cam.yfov,
-            (float)cam.aspectRatio, cam.znear, cam.zfar
-        ));
+        // node.m is camera to world so inverse(node.m) is viewMatrix;
+        cam.viewMatrix = inverse(cam.m);
+        cam.projView = cam.projView * cam.viewMatrix;
     }
 }
 

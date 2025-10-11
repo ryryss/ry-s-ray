@@ -24,7 +24,11 @@ struct Camera : public Node {
     vec3 v; // cam base up
     vec3 u; // cam base right
 
-    mat4 clipToCamera;
+    mat4 projMatrix; // camera to clip
+    mat4 clipToCamera; // proj inverse
+
+    mat4 viewMatrix; // inverse(node.m)
+    mat4 projView;
     Camera() {};
     Camera(const Node& other) : Node(other) {};
 };

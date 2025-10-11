@@ -35,8 +35,7 @@ namespace TextureSampler {
         switch (mode) {
         case 10497: // REPEAT
             return u - floor(u); // fract(u)
-        case 33648: // MIRRORED_REPEAT
-        {
+        case 33648: { // MIRRORED_REPEAT
             float frac = u - floor(u);
             int period = (int)floor(u);
             return (period % 2 == 0) ? frac : 1.0f - frac;
@@ -49,30 +48,14 @@ namespace TextureSampler {
 
     static vec4 NearestSample(const MipMap& mm, float u, float v)
     {
-        int x = int(u * mm.width) % mm.width;
-        int y = int(v * mm.height) % mm.height;
-        return mm.GetPixels(x, y);
+        return SampleNearest<vec4>(u, v, mm.width, mm.height,
+            [&](int x, int y) { return mm.GetPixels(x, y);});
     }
 
     static vec4 LinearSample(const MipMap& mm, float u, float v)
     {
-        float fx = u * mm.width - 0.5f;
-        float fy = v * mm.height - 0.5f;
-
-        int x0 = floor(fx);
-        int y0 = floor(fy);
-        int x1 = x0 + 1;
-        int y1 = y0 + 1;
-
-        float tx = fx - x0;
-        float ty = fy - y0;
-
-        vec4 c00 = mm.GetPixels(x0, y0);
-        vec4 c10 = mm.GetPixels(x1, y0);
-        vec4 c01 = mm.GetPixels(x0, y1);
-        vec4 c11 = mm.GetPixels(x1, y1);
-
-        return mix(mix(c00, c10, tx), mix(c01, c11, tx), ty);
+        return SampleBilinear<vec4>(u, v, mm.width, mm.height,
+            [&](int x, int y) { return mm.GetPixels(x, y);});
     }
     /*
     #define TINYGLTF_TEXTURE_FILTER_NEAREST (9728)

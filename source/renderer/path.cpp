@@ -12,11 +12,14 @@ PathRenderer::PathRenderer()
 {
     maxTraces = 1;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
+    denoiser = make_unique<TemporalDenoiser>(ivec2(3));
 }
 
 void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
 {
     auto& cam = s->GetActiveCamera();
+    preProjView = cam.projView;
+
     if (screenx <= 0 && screeny <= 0) {
         // throw ("");
     } else if (scrw == screenx && scrh == screeny) {
@@ -29,10 +32,11 @@ void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
         tMin = cam.znear;
         sppBuffer.clear();
         sppBuffer.resize(scrw * scrh);
-        pInfs.resize(scrw * scrh);
+        denoiser->ReSize(scrw, scrh);
     }
     output = p;
     scene = s;
+    pixelInfos = denoiser->GetGBuffer();
     for (int i = 1; i <= maxTraces; i++) {
         cout << "start " << currentTraces << "-th rayray" << endl;
         currentTraces = i;
@@ -40,25 +44,26 @@ void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
         Denoising();
     }
     sppBuffer.clear();
+    sppBuffer.resize(scrw * scrh);
 }
 
 void ry::PathRenderer::Denoising()
-{
-    BilateralFilter filter({3, 3});
+{ 
     for (uint16_t y = 0; y < scrh; y++) {
         for (uint16_t x = 0; x < scrw; x++) {
             uint32_t num = y * scrw + x;
-            output[num] = vec4(pow(filter.filter(pInfs, { x, y }, {scrw, scrh}), vec3(GammaSRGB)), 1.0);
+            output[num] = vec4(pow(denoiser->Denoise(x, y), vec3(GammaSRGB)), 1.0);
             // output[num] = vec4(pow(pInfs[num].color, vec3(GammaSRGB)), 1.0);
         }
     }
+    denoiser->AfterDenoise();
 }
 
 void PathRenderer::Parallel()
 {
     auto& t = Task::GetInstance();
 #ifdef DEBUG
-    auto wCnt = 1;
+    auto wCnt = 10;
 #else
     auto wCnt = t.WokerCnt();
 #endif
@@ -68,17 +73,10 @@ void PathRenderer::Parallel()
             for (uint16_t y = i * h; y < (i + 1) * h; y++) {
                 for (uint16_t x = 0; x < scrw; x++) {
                     uint32_t num = y * scrw + x;
-#ifdef DEBUG
-                    // if (y >= 150) {
                     auto& color = PathTracing(x, y).c;
                     sppBuffer[num] += color;
-                    pInfs[num].color = sppBuffer[num] / (float)currentTraces;
-                    // }
-#else
-                    auto& color = PathTracing(x, y).c;
-                    sppBuffer[num] += color;
-                    pInfs[num].color = sppBuffer[num] / (float)currentTraces;
-#endif
+                    (*pixelInfos)[num].color = sppBuffer[num] / (float)currentTraces;
+                    // output[num] = vec4(pixelInfos[num].color, 1.0f);
                 }
             }
         });
@@ -91,7 +89,8 @@ void PathRenderer::Parallel()
                 uint32_t num = y * scrw + x;
                 auto& color = PathTracing(x, y).c;
                 sppBuffer[num] += color;
-                pInfs[num].color = sppBuffer[num] / (float)currentTraces;
+                (*pixelInfos)[num].color = sppBuffer[num] / (float)currentTraces;
+                // output[num] = vec4(pixelInfos[num].color, 1.0f);
             }
         }
     }
@@ -122,7 +121,7 @@ Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
     }*/
 
     // Inverse Projection Method
-    // display -> NDC -> clip -> camera -> world
+    // display -> NDC -> clip(projection) -> camera(view) -> world
     Sampler s;
     vec2 ndc = (vec2(x, y) + s.Get2D());
     ndc = 2.f * ndc / vec2(scrw, scrh) - 1.f;
@@ -136,15 +135,40 @@ Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
     return { o, d };
 }
 
+vec2 PathRenderer::ComputeMotionVector(const vec3& worldPos, const mat4& prevViewProj, const mat4& currViewProj)
+{
+    vec4 clipCurr = currViewProj * vec4(worldPos, 1.0);
+    vec3 ndcCurr = { clipCurr.x / clipCurr.w, 
+                     clipCurr.y / clipCurr.w, 
+                     clipCurr.z / clipCurr.w, };
+    vec2 screenCurr = {
+        (ndcCurr.x * 0.5f + 0.5f) * scrw,
+        (1.0f - (ndcCurr.y * 0.5f + 0.5f)) * scrh
+    };
+
+    // previous frame
+    vec4 clipPrev = prevViewProj * vec4(worldPos, 1.0);
+    vec3 ndcPrev = { clipPrev.x / clipPrev.w,
+                     clipPrev.y / clipPrev.w,
+                     clipPrev.z / clipPrev.w, };
+    vec2 screenPrev = {
+        (ndcPrev.x * 0.5f + 0.5f) * scrw,
+        (1.0f - (ndcPrev.y * 0.5f + 0.5f)) * scrh
+    };
+
+    return screenPrev - screenCurr;
+}
+
 Spectrum PathRenderer::PathTracing(uint32_t x, uint32_t y)
 {
     Spectrum Lo(0.);
-    Lo += Li(RayGeneration(x, y), &pInfs[y * scrw + x]);
+    Lo += Li(RayGeneration(x, y), &(*pixelInfos)[y * scrw + x]);
     return Lo;
 }
 
 Spectrum PathRenderer::Li(const Ray& r, PixelInfo* pInf)
 {
+    auto& cam = scene->GetActiveCamera();
     Spectrum Lo(0.);
     Spectrum beta(1.f);
     Interaction isect;
@@ -161,6 +185,9 @@ Spectrum PathRenderer::Li(const Ray& r, PixelInfo* pInf)
         
         if (bounce == 0) {
             pInf->normal = isect.normal;
+            pInf->albedo = isect.mat->GetAlbedo();
+            pInf->depth = (cam.viewMatrix * vec4(isect.p, 1)).z;
+            ComputeMotionVector(isect.p, preProjView, cam.projView);
         }
         
         if ((bounce == 0 || specularBounce) && isect.mat->IsEmissive()) {
