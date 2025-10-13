@@ -18,7 +18,6 @@ PathRenderer::PathRenderer()
 void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
 {
     auto& cam = s->GetActiveCamera();
-    preProjView = cam.projView;
 
     if (screenx <= 0 && screeny <= 0) {
         // throw ("");
@@ -34,6 +33,7 @@ void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
         sppBuffer.resize(scrw * scrh);
         denoiser->ReSize(scrw, scrh);
     }
+    prevProjView = cam.projView;
     output = p;
     scene = s;
     pixelInfos = denoiser->GetGBuffer();
@@ -122,25 +122,17 @@ Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
 
 vec2 PathRenderer::ComputeMotionVector(const vec3& worldPos, const mat4& prevViewProj, const mat4& currViewProj)
 {
-    vec4 clipCurr = currViewProj * vec4(worldPos, 1.0);
-    vec3 ndcCurr = { clipCurr.x / clipCurr.w, 
-                     clipCurr.y / clipCurr.w, 
-                     clipCurr.z / clipCurr.w, };
-    vec2 screenCurr = {
-        (ndcCurr.x * 0.5f + 0.5f) * scrw,
-        (1.0f - (ndcCurr.y * 0.5f + 0.5f)) * scrh
+    auto worldToScreen = [this](const vec3& worldPos, const mat4& viewProj) {
+        vec4 clip = viewProj * vec4(worldPos, 1.0);
+        clip /= clip.w; // ndc
+        vec2 screen = {
+            (clip.x * 0.5f + 0.5f) * scrw,
+            (1.0f - (clip.y * 0.5f + 0.5f)) * scrh
+        };
+        return screen;
     };
-
-    // previous frame
-    vec4 clipPrev = prevViewProj * vec4(worldPos, 1.0);
-    vec3 ndcPrev = { clipPrev.x / clipPrev.w,
-                     clipPrev.y / clipPrev.w,
-                     clipPrev.z / clipPrev.w, };
-    vec2 screenPrev = {
-        (ndcPrev.x * 0.5f + 0.5f) * scrw,
-        (1.0f - (ndcPrev.y * 0.5f + 0.5f)) * scrh
-    };
-
+    vec2 screenCurr = worldToScreen(worldPos, currViewProj);
+    vec2 screenPrev = worldToScreen(worldPos, prevViewProj);
     return screenPrev - screenCurr;
 }
 
@@ -175,8 +167,13 @@ Spectrum PathRenderer::Li(const Ray& r, PixelInfo* pInf)
         if (bounce == 0) {
             pInf->normal = isect.normal;
             pInf->albedo = isect.mat->GetAlbedo();
-            pInf->depth = (cam.viewMatrix * vec4(isect.p, 1)).z;
-            ComputeMotionVector(isect.p, preProjView, cam.projView);
+            // pInf->depth = (cam.viewMatrix * vec4(isect.p, 1)).z;
+
+            vec4 clip = cam.projMatrix * cam.viewMatrix * vec4(isect.p, 1);
+            float ndcZ = clip.z / clip.w;              // [-1,1]
+            pInf->depth = (ndcZ * 0.5f + 0.5f);       // [0,1]，和 motion vector 对应
+
+            pInf->motion = ComputeMotionVector(isect.p, prevProjView, cam.projView);
         }
         
         if ((bounce == 0 || specularBounce) && isect.mat->IsEmissive()) {

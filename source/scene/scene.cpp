@@ -43,7 +43,7 @@ void Scene::ProcessCamera(uint16_t scrw, uint16_t scrh)
         }
         // node.m is camera to world so inverse(node.m) is viewMatrix;
         cam.viewMatrix = inverse(cam.m);
-        cam.projView = cam.projView * cam.viewMatrix;
+        cam.projView = cam.projMatrix * cam.viewMatrix;
     }
 }
 

@@ -71,13 +71,16 @@ vec3 TemporalDenoiser::Denoise(int x, int y)
     float prevDepth = SampleNearest<float>(prevUV.x, prevUV.y, width, height,
         [&](int x, int y) { return prevGBuffer[y * width + x].depth; }
     );
+    float prevAge = SampleBilinear<float>(prevUV.x, prevUV.y, width, height,
+        [&](int x, int y) { return prevTempBuffer[y * width + x].age; }
+    );
     // 3) history acceptance (normal & depth check)
     bool historyAccepted = true;
     if (dot(curPixel.normal, prevNormal) < normalThresh) { historyAccepted = false; }
     if (std::abs(curPixel.depth - prevDepth) > depthThresh) { historyAccepted = false; }
     
-    vec3 clampedPrev = prevM1;
-    if (!historyAccepted) {
+    vec3 clampedPrev = curPixel.color;
+    if (historyAccepted) {
     // 4) compute variance estimate from prev moments
         vec3 prevVar = max(prevM2 - prevM1 * prevM1, vec3(1e-6f)); // channel-wise variance floor
     // 5) optional: clamp the sampled prevM1 to current +- k * sigma
@@ -89,20 +92,29 @@ vec3 TemporalDenoiser::Denoise(int x, int y)
     // 6) temporal blending (exponential moving average)
     vec3 newM1;
     vec3 newM2;
-    // float alpha = 1.0f / (1.0f + prevTempBuffer[idx].age);
+    float alpha = 1.0f / (1.0f + prevAge);
+    alpha = clamp(alpha, 0.02f, 0.95f);        // protect extremes
+
+    vec3 diff = curPixel.color - clampedPrev;
+    float colorDiff = length(diff);             // 颜色差
+    float normalDiff = 1.0f - dot(curPixel.normal, prevNormal); // 法线角度差（需保存法线历史）
+    float similarity = exp(-colorDiff * 40.0f) * exp(-normalDiff * 10.0f);
+    float adaptiveAlpha = clamp(alpha * similarity, 0.02f, 1.0f);
+
     if (historyAccepted) {
         // M1_new = lerp(clampedPrev, cur.color, alpha)
-        newM1 = mix(clampedPrev, curPixel.color, alpha);
+        newM1 = mix(clampedPrev, curPixel.color, adaptiveAlpha);
         // M2_new = lerp(prevM2, cur.color*cur.color, alpha)
         vec3 curSq = curPixel.color * curPixel.color;
-        newM2 = mix(prevM2, curSq, alpha);
+        newM2 = mix(prevM2, curSq, adaptiveAlpha);
+        tempBuffer[idx].age = prevAge + 1.0f;
     } else {
         newM1 = curPixel.color;
         newM2 = curPixel.color * curPixel.color;
+        tempBuffer[idx].age = 1.0f;
     }
 
     tempBuffer[idx].M1 = newM1;
     tempBuffer[idx].M2 = newM2;
-    tempBuffer[idx].age = historyAccepted ? (tempBuffer[idx].age + 1.0f) : 1.0f;
     return newM1;
 }

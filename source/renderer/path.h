@@ -24,7 +24,7 @@ private:
     uint16_t maxTraces = 1; // spp
     uint16_t currentTraces = 0;
 
-    mat4 preProjView;
+    mat4 prevProjView;
     std::unique_ptr<Denoiser> denoiser;
     std::vector<PixelInfo>* pixelInfos;
 
