@@ -17,7 +17,7 @@ PathRenderer::PathRenderer()
 
 void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
 {
-    auto& cam = s->GetActiveCamera();
+    cam = &s->GetActiveCamera();
 
     if (screenx <= 0 && screeny <= 0) {
         // throw ("");
@@ -27,13 +27,13 @@ void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
         s->ProcessCamera(screenx, screeny);
         scrw = screenx;
         scrh = screeny;
-        tMax = cam.zfar;
-        tMin = cam.znear;
+        tMax = cam->zfar;
+        tMin = cam->znear;
         sppBuffer.clear();
         sppBuffer.resize(scrw * scrh);
         denoiser->ReSize(scrw, scrh);
     }
-    prevProjView = cam.projView;
+    prevProjView = cam->projView;
     output = p;
     scene = s;
     pixelInfos = denoiser->GetGBuffer();
@@ -90,7 +90,6 @@ void ry::PathRenderer::ParallelDynamic(uint16_t blockSize, function<void(uint16_
 
 Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
 {
-    auto& cam = scene->GetActiveCamera();
     vec3 o, d;
     // Geometric Method
     // l = -xmag  r = xmag b = -ymag t = ymag
@@ -111,29 +110,36 @@ Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
     vec2 ndc = (vec2(x, y) + s.Get2D());
     ndc = 2.f * ndc / vec2(scrw, scrh) - 1.f;
     vec4 clip { ndc, -1, 1 };
-    vec4 camSpace = cam.clipToCamera * clip;
+    vec4 camSpace = cam->clipToCamera * clip;
     camSpace /= camSpace.w;
     // now in camera coordinates
-    vec3 dir = cam.m * camSpace /* - vec3(0, 0, 0) */;
-    o = cam.e;
+    vec3 dir = cam->m * camSpace /* - vec3(0, 0, 0) */;
+    o = cam->e;
     d = normalize(dir - o); // here the dir represents a point
     return { o, d };
 }
 
-vec2 PathRenderer::ComputeMotionVector(const vec3& worldPos, const mat4& prevViewProj, const mat4& currViewProj)
+void PathRenderer::UpdateGBuffer(const Interaction& isect, PixelInfo* pInf)
 {
-    auto worldToScreen = [this](const vec3& worldPos, const mat4& viewProj) {
+    auto WorldToNdc = [this](const vec3& worldPos, const mat4& viewProj) {
         vec4 clip = viewProj * vec4(worldPos, 1.0);
-        clip /= clip.w; // ndc
-        vec2 screen = {
-            (clip.x * 0.5f + 0.5f) * scrw,
-            (1.0f - (clip.y * 0.5f + 0.5f)) * scrh
-        };
-        return screen;
+        return clip /= clip.w;        
     };
-    vec2 screenCurr = worldToScreen(worldPos, currViewProj);
-    vec2 screenPrev = worldToScreen(worldPos, prevViewProj);
-    return screenPrev - screenCurr;
+    auto NdcToScreen = [&](const vec3& ndcPos) {
+        return vec2( (ndcPos.x * 0.5f + 0.5f) * scrw,
+                     (1.0f - (ndcPos.y * 0.5f + 0.5f)) * scrh );
+    };
+
+    vec4 currClip = WorldToNdc(isect.p, cam->projView);
+    vec4 prevClip = WorldToNdc(isect.p, prevProjView);
+    pInf->depth = (currClip.z * 0.5f + 0.5f);
+
+    vec2 currScreen = NdcToScreen(currClip);
+    vec2 prevScreen = NdcToScreen(prevClip);
+    pInf->motion = prevScreen - currScreen;
+
+    pInf->normal = isect.normal;
+    pInf->albedo = isect.mat->GetAlbedo();
 }
 
 void PathRenderer::PathTracing()
@@ -165,15 +171,7 @@ Spectrum PathRenderer::Li(const Ray& r, PixelInfo* pInf)
         } 
         
         if (bounce == 0) {
-            pInf->normal = isect.normal;
-            pInf->albedo = isect.mat->GetAlbedo();
-            // pInf->depth = (cam.viewMatrix * vec4(isect.p, 1)).z;
-
-            vec4 clip = cam.projMatrix * cam.viewMatrix * vec4(isect.p, 1);
-            float ndcZ = clip.z / clip.w;              // [-1,1]
-            pInf->depth = (ndcZ * 0.5f + 0.5f);       // [0,1]，和 motion vector 对应
-
-            pInf->motion = ComputeMotionVector(isect.p, prevProjView, cam.projView);
+            UpdateGBuffer(isect, pInf);
         }
         
         if ((bounce == 0 || specularBounce) && isect.mat->IsEmissive()) {

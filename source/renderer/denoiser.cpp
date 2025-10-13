@@ -93,11 +93,9 @@ vec3 TemporalDenoiser::Denoise(int x, int y)
     vec3 newM1;
     vec3 newM2;
     float alpha = 1.0f / (1.0f + prevAge);
-    alpha = clamp(alpha, 0.02f, 0.95f);        // protect extremes
-
-    vec3 diff = curPixel.color - clampedPrev;
-    float colorDiff = length(diff);             // 颜色差
-    float normalDiff = 1.0f - dot(curPixel.normal, prevNormal); // 法线角度差（需保存法线历史）
+    alpha = clamp(alpha, 0.02f, 0.95f);
+    float colorDiff = length(curPixel.color - clampedPrev);
+    float normalDiff = 1.0f - dot(curPixel.normal, prevNormal);
     float similarity = exp(-colorDiff * 40.0f) * exp(-normalDiff * 10.0f);
     float adaptiveAlpha = clamp(alpha * similarity, 0.02f, 1.0f);
 

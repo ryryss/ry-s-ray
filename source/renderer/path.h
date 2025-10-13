@@ -7,7 +7,7 @@ public:
     PathRenderer();
     void Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p);
 private:
-    vec2 ComputeMotionVector(const vec3& worldPos, const mat4& ViewProj_prev, const mat4& ViewProj_curr);
+    void UpdateGBuffer(const Interaction& isect, PixelInfo* pInf);
     void Denoising();
     void Parallel();
     void ParallelDynamic(uint16_t blockSize, std::function<void(uint16_t x, uint16_t y)> work);
@@ -27,6 +27,8 @@ private:
     mat4 prevProjView;
     std::unique_ptr<Denoiser> denoiser;
     std::vector<PixelInfo>* pixelInfos;
+
+    const Camera* cam;
 
     uint16_t scrw, scrh;
     Scene* scene;
