@@ -10,8 +10,9 @@ private:
     vec2 ComputeMotionVector(const vec3& worldPos, const mat4& ViewProj_prev, const mat4& ViewProj_curr);
     void Denoising();
     void Parallel();
+    void ParallelDynamic(uint16_t blockSize, std::function<void(uint16_t x, uint16_t y)> work);
     Ray RayGeneration(uint32_t x, uint32_t y);
-    Spectrum PathTracing(uint32_t x, uint32_t y);
+    void PathTracing();
     // or named radiance(), L = Radiance, i = incoming
     Spectrum Li(const Ray& r, PixelInfo* pInf);
 

@@ -40,7 +40,7 @@ void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
     for (int i = 1; i <= maxTraces; i++) {
         cout << "start " << currentTraces << "-th rayray" << endl;
         currentTraces = i;
-        Parallel();
+        PathTracing();
         Denoising();
     }
     sppBuffer.clear();
@@ -49,17 +49,14 @@ void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
 
 void ry::PathRenderer::Denoising()
 { 
-    for (uint16_t y = 0; y < scrh; y++) {
-        for (uint16_t x = 0; x < scrw; x++) {
-            uint32_t num = y * scrw + x;
-            output[num] = vec4(pow(denoiser->Denoise(x, y), vec3(GammaSRGB)), 1.0);
-            // output[num] = vec4(pow(pInfs[num].color, vec3(GammaSRGB)), 1.0);
-        }
-    }
+    ParallelDynamic(32, [this](uint16_t x, uint16_t y) {
+        auto idx = y * scrw + x;
+        output[idx] = vec4(pow(denoiser->Denoise(x, y), vec3(GammaSRGB)), 1.0);
+    });
     denoiser->AfterDenoise();
 }
 
-void PathRenderer::Parallel()
+void ry::PathRenderer::ParallelDynamic(uint16_t blockSize, function<void(uint16_t x, uint16_t y)> work)
 {
     auto& t = Task::GetInstance();
 #ifdef DEBUG
@@ -67,42 +64,28 @@ void PathRenderer::Parallel()
 #else
     auto wCnt = t.WokerCnt();
 #endif
-    for (auto i = 0; i < wCnt; i++) {
-        t.Add([this, i, h = scrh / wCnt]() {
-            // use the number of pixels on the y-axis to parallel cal
-            for (uint16_t y = i * h; y < (i + 1) * h; y++) {
-                for (uint16_t x = 0; x < scrw; x++) {
-                    uint32_t num = y * scrw + x;
-                    auto& color = PathTracing(x, y).c;
-                    sppBuffer[num] += color;
-                    (*pixelInfos)[num].color = sppBuffer[num] / (float)currentTraces;
-                    // output[num] = vec4(pixelInfos[num].color, 1.0f);
+    uint32_t totalBlocks = (scrh + blockSize - 1) / blockSize;
+    std::atomic<uint32_t> nextBlock{ 0 };
+
+    for (uint32_t i = 0; i < wCnt; i++) {
+        t.Add([&, i]() {
+            while (true) {
+                uint32_t blockIdx = nextBlock.fetch_add(1);
+                if (blockIdx >= totalBlocks) {
+                    break;
+                }
+
+                uint32_t yStart = blockIdx * blockSize;
+                uint32_t yEnd = std::min(yStart + blockSize, (uint32_t)scrh);
+                for (uint16_t y = yStart; y < yEnd; y++) {
+                    for (uint16_t x = 0; x < scrw; x++) {
+                        work(x, y);
+                    }
                 }
             }
         });
     }
-    t.AsynExcute();
-
-    if (auto mod = scrh % wCnt; mod) {
-        for (uint16_t y = scrh / wCnt * wCnt; y < scrh; y++) {
-            for (uint16_t x = 0; x < scrw; x++) {
-                uint32_t num = y * scrw + x;
-                auto& color = PathTracing(x, y).c;
-                sppBuffer[num] += color;
-                (*pixelInfos)[num].color = sppBuffer[num] / (float)currentTraces;
-                // output[num] = vec4(pixelInfos[num].color, 1.0f);
-            }
-        }
-    }
-    while (!t.Free());
-    // below is the serial version
-    // l = -xmag  r = xmag b = -ymag t = ymag
-    // u = l + (r − l)(i + 0.5)/nx
-    /*for (uint16_t y = 0; y < scr.h; y++) {
-        for (uint16_t x = 0; x < scr.w; x++) {
-            RayCompute(x, y);
-        }
-    }*/
+    t.Excute();
 }
 
 Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
@@ -110,6 +93,8 @@ Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
     auto& cam = scene->GetActiveCamera();
     vec3 o, d;
     // Geometric Method
+    // l = -xmag  r = xmag b = -ymag t = ymag
+    // u = l + (r − l)(i + 0.5)/nx
     /*float uu = -cam.xmag + 2 * cam.xmag * (x + 0.5) / scrw;
     float vv = -cam.ymag + 2 * cam.ymag * (y + 0.5) / scrh;
     if (cam.type == "perspective") {
@@ -159,11 +144,15 @@ vec2 PathRenderer::ComputeMotionVector(const vec3& worldPos, const mat4& prevVie
     return screenPrev - screenCurr;
 }
 
-Spectrum PathRenderer::PathTracing(uint32_t x, uint32_t y)
+void PathRenderer::PathTracing()
 {
-    Spectrum Lo(0.);
-    Lo += Li(RayGeneration(x, y), &(*pixelInfos)[y * scrw + x]);
-    return Lo;
+    ParallelDynamic(16, [this](uint16_t x, uint16_t y) {
+        auto idx = y * scrw + x;
+        auto& color = Li(RayGeneration(x, y), &(*pixelInfos)[idx]);
+        sppBuffer[idx] += color.c;
+        (*pixelInfos)[idx].color = sppBuffer[idx] / (float)currentTraces;
+        // output[idx] = vec4((*pixelInfos)[idx].color, 1.0f);
+    });
 }
 
 Spectrum PathRenderer::Li(const Ray& r, PixelInfo* pInf)
