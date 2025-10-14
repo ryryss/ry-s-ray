@@ -12,7 +12,8 @@ PathRenderer::PathRenderer()
 {
     maxTraces = 1;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
-    denoiser = make_unique<TemporalDenoiser>(ivec2(3));
+    denoisers.push_back(make_unique<TemporalDenoiser>(ivec2(3)));
+    denoisers.push_back(make_unique<AtrousDenoiser>(ivec2(3)));
 }
 
 void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
@@ -31,12 +32,15 @@ void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
         tMin = cam->znear;
         sppBuffer.clear();
         sppBuffer.resize(scrw * scrh);
-        denoiser->ReSize(scrw, scrh);
+
+        gBuffer.resize(scrw * scrh);
+        for (auto& d : denoisers) {
+            d->ReSize(scrw, scrh);
+        }
     }
     prevProjView = cam->projView;
     output = p;
     scene = s;
-    pixelInfos = denoiser->GetGBuffer();
     for (int i = 1; i <= maxTraces; i++) {
         cout << "start " << currentTraces << "-th rayray" << endl;
         currentTraces = i;
@@ -49,11 +53,41 @@ void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
 
 void ry::PathRenderer::Denoising()
 { 
-    ParallelDynamic(32, [this](uint16_t x, uint16_t y) {
+    TemporalDenoiser* temporalDenoiser = (TemporalDenoiser*)denoisers[0].get();
+    ParallelDynamic(32, [&](uint16_t x, uint16_t y) {
         auto idx = y * scrw + x;
-        output[idx] = vec4(pow(denoiser->Denoise(x, y), vec3(GammaSRGB)), 1.0);
+        const auto& temporalRes = temporalDenoiser->Denoise(x, y, gBuffer);
+        output[idx] = vec4(temporalRes, 1.0);
+        output[idx] = pow(vec4(temporalRes, 1.0), vec4(GammaSRGB));
     });
-    denoiser->AfterDenoise();
+    temporalDenoiser->AfterDenoise();
+
+    /*AtrousDenoiser* atrousDenoiser = (AtrousDenoiser*)denoisers[1].get();
+    auto& ping = atrousDenoiser->GetPing();
+    for (int y = 0; y < scrh; y++) {
+        for (int x = 0; x < scrw; x++) {
+            int idx = y * scrw + x;
+            ping[idx] = output[idx];
+            // output[idx] *= 0.6; // temporal denoise weight is 0.6
+        }
+    }
+    constexpr int iteration = 3;
+    atrousDenoiser->SetTteration(iteration);
+    for (int iter = 0; iter < iteration; ++iter) {
+        ParallelDynamic(32, [&](uint16_t x, uint16_t y) {
+            auto idx = y * scrw + x;
+            atrousDenoiser->Denoise(x, y, gBuffer);
+        });
+        atrousDenoiser->SwapPingPong();
+    }
+
+    for (int y = 0; y < scrh; y++) {
+        for (int x = 0; x < scrw; x++) {
+            int idx = y * scrw + x;
+            output[idx] += vec4(ping[idx] * 1.0f, 1.0); // temporal denoise weight is 0.6
+            output[idx] = pow(output[idx], vec4(GammaSRGB));
+        }
+    }*/
 }
 
 void ry::PathRenderer::ParallelDynamic(uint16_t blockSize, function<void(uint16_t x, uint16_t y)> work)
@@ -146,10 +180,10 @@ void PathRenderer::PathTracing()
 {
     ParallelDynamic(16, [this](uint16_t x, uint16_t y) {
         auto idx = y * scrw + x;
-        auto& color = Li(RayGeneration(x, y), &(*pixelInfos)[idx]);
+        auto& color = Li(RayGeneration(x, y), &gBuffer[idx]);
         sppBuffer[idx] += color.c;
-        (*pixelInfos)[idx].color = sppBuffer[idx] / (float)currentTraces;
-        // output[idx] = vec4((*pixelInfos)[idx].color, 1.0f);
+        gBuffer[idx].color = sppBuffer[idx] / (float)currentTraces;
+        // output[idx] = vec4(gBuffer[idx].color, 1.0f);
     });
 }
 

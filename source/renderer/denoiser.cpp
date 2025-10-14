@@ -3,7 +3,7 @@
 using namespace ry;
 using namespace std;
 
-vec3 BilateralDenoiser::Denoise(int x, int y)
+vec3 BilateralDenoiser::Denoise(int x, int y, const std::vector<PixelInfo>& gBuffer)
 {
     auto idx = [&](int x, int y) { return y * width + x; };
     const PixelInfo& c = gBuffer[idx(x, y)];
@@ -45,7 +45,7 @@ vec3 BilateralDenoiser::Denoise(int x, int y)
     return sumWeight > 0.0f ? sumColor / sumWeight : c.color;
 }
 
-vec3 TemporalDenoiser::Denoise(int x, int y)
+vec3 TemporalDenoiser::Denoise(int x, int y, const vector<PixelInfo>& gBuffer)
 {
     int idx = y * width + x;
     const PixelInfo& curPixel = gBuffer[idx];
@@ -115,4 +115,56 @@ vec3 TemporalDenoiser::Denoise(int x, int y)
     tempBuffer[idx].M1 = newM1;
     tempBuffer[idx].M2 = newM2;
     return newM1;
+}
+
+vec3 ry::AtrousDenoiser::Denoise(int x, int y, const vector<PixelInfo>& gBuffer)
+{
+    int idx = y * width + x;
+    const PixelInfo& center = gBuffer[idx];
+    const vec3 centerColor = ping[idx];
+
+    vec3 sumColor = vec3(0);
+    float sumWeight = 0.0f;
+
+    // ид trous 5x5 kernel
+    const int offsets[5] = { -2, -1, 0, 1, 2 };
+    const float kernel[5] = { 1.f / 16, 1.f / 4, 3.f / 8, 1.f / 4, 1.f / 16 };
+
+    for (int dy = 0; dy < 5; ++dy) {
+        for (int dx = 0; dx < 5; ++dx) {
+            int ox = x + offsets[dx] * step;
+            int oy = y + offsets[dy] * step;
+            if (ox < 0 || oy < 0 || ox >= width || oy >= height)
+                continue;
+
+            const PixelInfo& nb = gBuffer[oy * width + ox];
+            const vec3 nbColor = ping[oy * width + ox];
+
+            // spatial kernel weight
+            float wSpatial = kernel[dx] * kernel[dy];
+
+            // color weight (squared distance)
+            float colorDist2 = dot(centerColor - nbColor, centerColor - nbColor);
+            float wColor = exp(-colorDist2 / (2.f * sigmaColor * sigmaColor));
+
+            // normal weight (angle difference)
+            float ndot = max(0.f, dot(center.normal, nb.normal));
+            float wNormal = exp(-pow(1.f - ndot, 2.f) / (2.f * sigmaNormal * sigmaNormal));
+
+            // albedo weight
+            float albedoDist2 = dot(center.albedo - nb.albedo, center.albedo - nb.albedo);
+            float wAlbedo = exp(-albedoDist2 / (2.f * sigmaAlbedo * sigmaAlbedo));
+
+            // depth weight (use relative difference)
+            float depthDiff = abs(center.depth - nb.depth) / max(center.depth, 1e-3f);
+            float wDepth = exp(-depthDiff * depthDiff / (2.f * sigmaDepth * sigmaDepth));
+
+            float weight = wSpatial * wColor * wNormal * wAlbedo * wDepth;
+
+            sumColor += nbColor * weight;
+            sumWeight += weight;
+        }
+    }
+    pong[idx] = sumWeight > 1e-5f ? sumColor / sumWeight : centerColor;
+    return pong[idx];
 }

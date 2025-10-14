@@ -25,8 +25,8 @@ private:
     uint16_t currentTraces = 0;
 
     mat4 prevProjView;
-    std::unique_ptr<Denoiser> denoiser;
-    std::vector<PixelInfo>* pixelInfos;
+    std::vector<std::unique_ptr<Denoiser>> denoisers;
+    std::vector<PixelInfo> gBuffer;
 
     const Camera* cam;
 
