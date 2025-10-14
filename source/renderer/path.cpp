@@ -53,24 +53,18 @@ void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
 
 void ry::PathRenderer::Denoising()
 { 
+    AtrousDenoiser* atrousDenoiser = (AtrousDenoiser*)denoisers[1].get();
+    auto& ping = atrousDenoiser->GetPing();
+
     TemporalDenoiser* temporalDenoiser = (TemporalDenoiser*)denoisers[0].get();
     ParallelDynamic(32, [&](uint16_t x, uint16_t y) {
         auto idx = y * scrw + x;
-        const auto& temporalRes = temporalDenoiser->Denoise(x, y, gBuffer);
-        output[idx] = vec4(temporalRes, 1.0);
+        ping[idx] = temporalDenoiser->Denoise(x, y, gBuffer);
         // output[idx] = pow(vec4(temporalRes, 1.0), vec4(GammaSRGB));
     });
     temporalDenoiser->AfterDenoise();
     temporalDenoiser->KeepGBuffer(gBuffer);
 
-    AtrousDenoiser* atrousDenoiser = (AtrousDenoiser*)denoisers[1].get();
-    auto& ping = atrousDenoiser->GetPing();
-    for (int y = 0; y < scrh; y++) {
-        for (int x = 0; x < scrw; x++) {
-            int idx = y * scrw + x;
-            ping[idx] = output[idx];
-        }
-    }
     constexpr int iteration = 5;
     atrousDenoiser->SetTteration(iteration);
     for (int iter = 0; iter < iteration; ++iter) {
@@ -81,11 +75,11 @@ void ry::PathRenderer::Denoising()
         atrousDenoiser->SwapPingPong();
     }
 
+    // set result
     const auto& res = atrousDenoiser->GetPong();
     for (int y = 0; y < scrh; y++) {
         for (int x = 0; x < scrw; x++) {
             int idx = y * scrw + x;
-            // temporal denoise weight is 0.6
             output[idx] = pow(vec4(res[idx], 1.0), vec4(GammaSRGB));
         }
     }

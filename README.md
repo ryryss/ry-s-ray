@@ -20,7 +20,8 @@ This project requires the following third-party libraries:
 ## Perf
 - v1.0.0 3000+ triangles take about 3 seconds to render on intel i7-8700
 - v1.1.1 4000+ triangles simple PBR (SPP=64  bounces=3) with BVH 26s, without BVH 168s (BVH have bug)
-- v1.2.0 4000+ triangles simple PBR (SPP=64  bounces=3) with BVH 300s, without BVH 1500s (why become so long,,,)
+- v1.2.0 4000+ triangles simple PBR (SPP=64  bounces=3) with BVH 300s, without BVH 1500s
+- v1.3.0 4000+ triangles simple PBR (SPP=1  bounces=3) with temporal denoise and atrous denoise 3s
 
 ## Version
 - v1.0.0 use the first camera  and the first light found to render target
@@ -29,18 +30,24 @@ This project requires the following third-party libraries:
 - v1.0.3 fix some bug
 - v1.1.0 PBR base
 - v1.2.0 refactor and reflection
+- v1.3.0 denoise
 
 ## TODO List
-- some render bug :  especially for reflection
+- some render bug :  reflection and denoise
 - acceleration (real time)
 - multiple importance sampling
-- noise reduction
 - gpu support
-- multi-buffer
+- simple real-time interaction (move camera)
 - specify material
 
 ## Test File
 See https://github.com/KhronosGroup/glTF-Sample-Models or [branch model](https://github.com/ryryss/ry-s-ray/tree/model)
+
+v1.3.0
+
+denoise have some bug
+
+<img src="rendering%20effect/v1.3.0.png" style="zoom: 80%;" />
 
 v1.2.0
 
