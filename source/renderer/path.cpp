@@ -53,7 +53,7 @@ void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
 
 void ry::PathRenderer::Denoising()
 { 
-    TemporalDenoiser* temporalDenoiser = (TemporalDenoiser*)denoisers[0].get();
+    /*TemporalDenoiser* temporalDenoiser = (TemporalDenoiser*)denoisers[0].get();
     ParallelDynamic(32, [&](uint16_t x, uint16_t y) {
         auto idx = y * scrw + x;
         const auto& temporalRes = temporalDenoiser->Denoise(x, y, gBuffer);
@@ -61,8 +61,9 @@ void ry::PathRenderer::Denoising()
         output[idx] = pow(vec4(temporalRes, 1.0), vec4(GammaSRGB));
     });
     temporalDenoiser->AfterDenoise();
+    temporalDenoiser->KeepGBuffer(gBuffer);*/
 
-    /*AtrousDenoiser* atrousDenoiser = (AtrousDenoiser*)denoisers[1].get();
+    AtrousDenoiser* atrousDenoiser = (AtrousDenoiser*)denoisers[1].get();
     auto& ping = atrousDenoiser->GetPing();
     for (int y = 0; y < scrh; y++) {
         for (int x = 0; x < scrw; x++) {
@@ -81,13 +82,14 @@ void ry::PathRenderer::Denoising()
         atrousDenoiser->SwapPingPong();
     }
 
+    const auto& res = atrousDenoiser->GetPong();
     for (int y = 0; y < scrh; y++) {
         for (int x = 0; x < scrw; x++) {
             int idx = y * scrw + x;
-            output[idx] += vec4(ping[idx] * 1.0f, 1.0); // temporal denoise weight is 0.6
-            output[idx] = pow(output[idx], vec4(GammaSRGB));
+            // temporal denoise weight is 0.6
+            output[idx] = pow(vec4(res[idx], 1.0), vec4(GammaSRGB));
         }
-    }*/
+    }
 }
 
 void ry::PathRenderer::ParallelDynamic(uint16_t blockSize, function<void(uint16_t x, uint16_t y)> work)
@@ -183,7 +185,7 @@ void PathRenderer::PathTracing()
         auto& color = Li(RayGeneration(x, y), &gBuffer[idx]);
         sppBuffer[idx] += color.c;
         gBuffer[idx].color = sppBuffer[idx] / (float)currentTraces;
-        // output[idx] = vec4(gBuffer[idx].color, 1.0f);
+        output[idx] = vec4(gBuffer[idx].color, 1.0f);
     });
 }
 

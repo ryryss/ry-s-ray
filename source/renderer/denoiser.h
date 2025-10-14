@@ -57,6 +57,9 @@ public:
     inline std::vector<vec3>& GetPing() {
         return ping;
     }
+    inline std::vector<vec3>& GetPong() {
+        return pong;
+    }
     inline void SetTteration(int i) {
         iteration = i;
         step = 1; // reset step
