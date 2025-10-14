@@ -76,8 +76,8 @@ private:
     std::vector<vec3> pong;
 
     const float sigmaColor = 3.0f;
-    const float sigmaNormal = 0.1f;
-    const float sigmaDepth = 0.02f;
+    const float sigmaNormal = 0.3f;
+    const float sigmaDepth = 0.05f;
     const float sigmaAlbedo = 0.2f;
 };
 

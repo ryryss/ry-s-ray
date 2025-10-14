@@ -18,14 +18,14 @@ int main(int argc, char* argv[]) {
     scene.AddModel(input);
     auto& d = Display::GetInstance();
 
-    bool keepRender = true;
+    int keepRender = 1000;
     PathRenderer renderer;
     thread t([&](){
-        // while (keepRender) {
+        while (keepRender--) {
             auto now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
             renderer.Render(&scene, d.getWindowWidth(), d.getWindowHeight(), d.GetPixels().data());
             cout << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - now << endl;
-        // }
+        }
     });
     t.detach();
 

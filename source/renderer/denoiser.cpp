@@ -50,7 +50,7 @@ vec3 TemporalDenoiser::Denoise(int x, int y, const vector<PixelInfo>& gBuffer)
     int idx = y * width + x;
     const PixelInfo& curPixel = gBuffer[idx];
     // 1) compute previous pixel location via motion vector
-    vec2 prevPixel = vec2(x, y) + curPixel.motion;
+    vec2 prevPixel = vec2(x + 0.5, y + 0.5) + curPixel.motion;
     vec2 prevUV = prevPixel / vec2(width, height);
     if (prevUV.x < 0.0 || prevUV.x > 1.0 || prevUV.y < 0.0 || prevUV.y > 1.0) {
         tempBuffer[idx].M1 = curPixel.color;
@@ -127,8 +127,8 @@ vec3 ry::AtrousDenoiser::Denoise(int x, int y, const vector<PixelInfo>& gBuffer)
     float sumWeight = 0.0f;
 
     // ид trous 5x5 kernel
-    const int offsets[5] = { -2, -1, 0, 1, 2 };
-    const float kernel[5] = { 1.f / 16, 1.f / 4, 3.f / 8, 1.f / 4, 1.f / 16 };
+    const static int offsets[5] = { -2, -1, 0, 1, 2 };
+    const static float kernel[5] = { 1.f / 16, 1.f / 4, 3.f / 8, 1.f / 4, 1.f / 16 };
 
     for (int dy = 0; dy < 5; ++dy) {
         for (int dx = 0; dx < 5; ++dx) {
@@ -157,6 +157,7 @@ vec3 ry::AtrousDenoiser::Denoise(int x, int y, const vector<PixelInfo>& gBuffer)
 
             // depth weight (use relative difference)
             float depthDiff = abs(center.depth - nb.depth) / max(center.depth, 1e-3f);
+            // float depthDiff = abs(center.depth - nb.depth);
             float wDepth = exp(-depthDiff * depthDiff / (2.f * sigmaDepth * sigmaDepth));
 
             float weight = wSpatial * wColor * wNormal * wAlbedo * wDepth;
