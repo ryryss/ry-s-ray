@@ -5,7 +5,7 @@ namespace ry{
 class PathRenderer {
 public:
     PathRenderer();
-    void Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p);
+    void Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* out);
 private:
     void UpdateGBuffer(const Interaction& isect, PixelInfo* pInf);
     void Denoising();
