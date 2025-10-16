@@ -13,7 +13,7 @@ PathRenderer::PathRenderer()
     maxTraces = 1;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
     denoisers.push_back(make_unique<TemporalDenoiser>(ivec2(3)));
-    denoisers.push_back(make_unique<AtrousDenoiser>(ivec2(2)));
+    // denoisers.push_back(make_unique<AtrousDenoiser>(ivec2(2)));
 }
 
 void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* out)
@@ -117,6 +117,7 @@ void PathRenderer::UpdateGBuffer(const Interaction& isect, PixelInfo* pInf)
 
     pInf->normal = isect.normal;
     pInf->position = isect.p;
+    pInf->albedo = isect.mat->GetAlbedo();
 }
 
 void PathRenderer::PathTracing()

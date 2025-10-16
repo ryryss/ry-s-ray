@@ -7,6 +7,7 @@ struct PixelInfo {
     // float roughness;
     vec3 position;
     vec2 motion;
+    vec3 albedo;
 };
 
 struct TemporalInfo {
@@ -22,14 +23,14 @@ public:
     virtual void Denoise(int x, int y, const PixelInfo* input, vec4* output) = 0;
     virtual void ReSize(int w, int h) { width = w; height = h; }
 protected:
-    const ivec2 radius;
+    ivec2 radius;
     int width, height;
     const PixelInfo* gBuffer;
 };
 
 class AtrousDenoiser : public Denoiser {
 public:
-    AtrousDenoiser(const ivec2& r) : Denoiser(r) {}
+    AtrousDenoiser(const ivec2& r) : Denoiser(r) { radius = ivec2(kernelSize / 2); }
 
     void Denoise(int x, int y, const PixelInfo* gBuffer, vec4* output) override;
     inline void ReSize(int w, int h) override {
@@ -49,10 +50,16 @@ private:
     std::vector<vec3> ping;
     std::vector<vec3> pong;
 
-    const float sigmaColor0 = 5.0f;
-    float sigmaColor = 40.0f;
-    float sigmaNormal = 0.05f;
-    float sigmaPosition = 0.2f;
+    const float sigmaColor0 = 2.0f;
+    float sigmaColor = 5.0f;
+    float sigmaNormal = 0.3f;
+    float sigmaPosition = 0.1f;
+    float sigmaAlbedo = 0.08f;
+
+    const static inline int kernelSize = 5;
+    const static inline float kernel[kernelSize] = { 1.f / 16, 1.f / 4, 3.f / 8, 1.f / 4, 1.f / 16 };
+    const static inline float kSum = 1.f / 16 + 1.f / 4 + 3.f / 8 + 1.f / 4 + 1.f / 16;
+    const static inline float kSum2 = kSum * kSum;
 };
 
 class TemporalDenoiser : public Denoiser {

@@ -1,4 +1,4 @@
-#include "denoiser.h"
+﻿#include "denoiser.h"
 #include "sampler.hpp"
 #include "task.h"
 using namespace ry;
@@ -12,7 +12,7 @@ void TemporalDenoiser::Denoise(int x, int y, const PixelInfo* input, vec4* outpu
         output[y * width + x] = TemporalDenoise(x, y);
     });
     prevTempBuffer = tempBuffer;
-    memccpy(prevGBuffer.data(), gBuffer, width * height, width * height);
+    copy(input, input + width * height, prevGBuffer.begin());
 }
 
 vec4 TemporalDenoiser::TemporalDenoise(uint16_t x, uint16_t y)
@@ -90,8 +90,13 @@ vec4 TemporalDenoiser::TemporalDenoise(uint16_t x, uint16_t y)
 void AtrousDenoiser::Denoise(int x, int y, const PixelInfo* input, vec4* output)
 {
     gBuffer = input;
-    auto& t = Task::GetInstance();
     step = 1;
+    for (int i = 0; i < width * height; i++) {
+        // use temporal output or path trace output as input
+        ping[i] = output[i];
+    }
+
+    auto& t = Task::GetInstance();
     for (int i = 0; i < iteration; i++) {
         t.Parallel2D(width, height, 32, [this, &output](uint16_t x, uint16_t y) {
             output[y * width + x] = AtrousDenoise(x, y);
@@ -102,45 +107,45 @@ void AtrousDenoiser::Denoise(int x, int y, const PixelInfo* input, vec4* output)
     }
 }
 
+// Edge-Avoiding À-Trous Wavelet Transform for fast Global Illumination Filtering(2010)
 vec4 AtrousDenoiser::AtrousDenoise(uint16_t x, uint16_t y)
 {
-    int idx = y * width + x;
-    const PixelInfo& center = gBuffer[idx];
-    vec3 centerColor = ping[idx];
+    int p = y * width + x;
+    const PixelInfo& center = gBuffer[p];
+    vec3 centerColor = ping[p]; // must use new color
 
     vec3 sumColor = vec3(0);
     float sumWeight = 0.0f;
-
-    const static float kernel[5] = { 1.f / 16, 1.f / 4, 3.f / 8, 1.f / 4, 1.f / 16 };
-
     for (int dy = -radius.x; dy <= radius.x; ++dy) {
         for (int dx = -radius.x; dx <= radius.x; ++dx) {
             int sx = x + dx * step;
             int sy = y + dy * step;
             if (sx < 0 || sy < 0 || sx >= width || sy >= height) { continue; }
-            int sIdx = sy * width + sx;
-            const PixelInfo& nb = gBuffer[sIdx];
-            vec3 nbColor = ping[sIdx];
-
+            int q = sy * width + sx;
+            const PixelInfo& nb = gBuffer[q]; // must use new color
+            vec3 nbColor = ping[q];
+            // color weight
             float wRt = 1.0f;
-            if (iteration > 0) {
+            if (step > 1) {
                 float dc = glm::length(centerColor - nbColor);
                 wRt = expf(-(dc * dc) / (sigmaColor * sigmaColor));
             }
-
+            // normal weight
             float dn = glm::length(center.normal - nb.normal);
-            float w_n = expf(-(dn * dn) / (sigmaNormal * sigmaNormal));
+            float wN = expf(-(dn * dn) / (sigmaNormal * sigmaNormal));
+            // position weight
+            float dxp = glm::length(center.position - nb.position) * 0.1;
+            float wX = expf(-(dxp * dxp) / (sigmaPosition * sigmaPosition));
+            // albedo weight
+            float da = glm::length(center.albedo - nb.albedo);
+            float wA = expf(-(da * da) / (sigmaAlbedo * sigmaAlbedo));
 
-            float dxp = glm::length(center.position - nb.position);
-            float w_x = expf(-(dxp * dxp) / (sigmaPosition * sigmaPosition));
-
-            float w = wRt * w_n * w_x;
-
-            float kernel_w = kernel[dx + radius.x] * kernel[dy + radius.x];
-            sumColor += nb.color * w * kernel_w;
-            sumWeight += w * kernel_w;
+            float w = wRt * wN * wX * wA;
+            float kWeight = kernel[dx + radius.x] * kernel[dy + radius.x]; // / kSum2;
+            sumColor += nbColor * w * kWeight;
+            sumWeight += w * kWeight;
         }
     }
-    pong[idx] = sumWeight > 1e-5f ? sumColor / sumWeight : center.color;
-    return { pong[idx], 1.0 };
+    pong[p] = sumWeight > 1e-5f ? sumColor / sumWeight : center.color;
+    return { pong[p], 1.0 };
 }
