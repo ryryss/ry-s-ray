@@ -39,7 +39,7 @@ void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* ou
         }
     }
     prevProjView = cam->projView;
-    output = p;
+    output = out;
     scene = s;
     for (int i = 1; i <= maxTraces; i++) {
         cout << "start " << currentTraces << "-th rayray" << endl;
