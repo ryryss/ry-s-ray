@@ -19,6 +19,8 @@ public:
     void Excute();
     void AsynExcute();
     bool Free();
+    void Task::Parallel2D(uint16_t x, uint16_t y, uint16_t blockSize,
+        std::function<void(uint16_t x, uint16_t y)> work);
     /*template<typename F, typename... Args>
     auto submit(F&& f, Args&&... args) {
         auto task = std::make_shared<std::packaged_task<return_type()>>(

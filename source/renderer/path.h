@@ -9,8 +9,6 @@ public:
 private:
     void UpdateGBuffer(const Interaction& isect, PixelInfo* pInf);
     void Denoising();
-    void Parallel();
-    void ParallelDynamic(uint16_t blockSize, std::function<void(uint16_t x, uint16_t y)> work);
     Ray RayGeneration(uint32_t x, uint32_t y);
     void PathTracing();
     // or named radiance(), L = Radiance, i = incoming

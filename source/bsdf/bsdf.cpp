@@ -10,19 +10,19 @@ vec2 ConcentricSampleDisk(const vec2& u) {
 
     // Apply concentric mapping to point
     float theta, r;
-    if (std::abs(uOffset.x) > std::abs(uOffset.y)) {
+    if (abs(uOffset.x) > abs(uOffset.y)) {
         r = uOffset.x;
         theta = PiOver4 * (uOffset.y / uOffset.x);
     } else {
         r = uOffset.y;
         theta = PiOver2 - PiOver4 * (uOffset.x / uOffset.y);
     }
-    return r * vec2(std::cos(theta), std::sin(theta));
+    return r * vec2(cos(theta), sin(theta));
 }
 
 inline vec3 CosineSampleHemisphere(const vec2& u) {
     vec2 d = ConcentricSampleDisk(u);
-    float z = std::sqrt(std::max((float)0, 1 - d.x * d.x - d.y * d.y));
+    float z = sqrt(max((float)0, 1 - d.x * d.x - d.y * d.y));
     return vec3(d.x, d.y, z);
 }
 
@@ -75,7 +75,7 @@ Spectrum BxDF::Sample_f(const vec3& wo, vec3* wi, const vec2& u, float* pdf, BxD
 
 float BxDF::Pdf(const vec3& wo, const vec3& wi) const
 {
-    return wo.z * wi.z > 0 ? std::abs(wi.z) * InvPi : 0;
+    return wo.z * wi.z > 0 ? abs(wi.z) * InvPi : 0;
 }
 
 Spectrum MicrofacetReflection::f(const vec3& wo, const vec3& wi) const
@@ -127,18 +127,18 @@ static void TrowbridgeReitzSample11(float cosTheta, float U1, float U2,
     }
 
     float sinTheta =
-        std::sqrt(std::max((float)0, (float)1 - cosTheta * cosTheta));
+        sqrt(max((float)0, (float)1 - cosTheta * cosTheta));
     float tanTheta = sinTheta / cosTheta;
     float a = 1 / tanTheta;
-    float G1 = 2 / (1 + std::sqrt(1.f + 1.f / (a * a)));
+    float G1 = 2 / (1 + sqrt(1.f + 1.f / (a * a)));
 
     // sample slope_x
     float A = 2 * U1 / G1 - 1;
     float tmp = 1.f / (A * A - 1.f);
     if (tmp > 1e10) tmp = 1e10;
     float B = tanTheta;
-    float D = std::sqrt(
-        std::max(float(B * B * tmp * tmp - (A * A - B * B) * tmp), float(0)));
+    float D = sqrt(
+        max(float(B * B * tmp * tmp - (A * A - B * B) * tmp), float(0)));
     float slope_x_1 = B * tmp - D;
     float slope_x_2 = B * tmp + D;
     *slope_x = (A < 0 || slope_x_2 > 1.f / tanTheta) ? slope_x_1 : slope_x_2;
@@ -155,7 +155,7 @@ static void TrowbridgeReitzSample11(float cosTheta, float U1, float U2,
     float z =
         (U2 * (U2 * (U2 * 0.27385f - 0.73369f) + 0.46341f)) /
         (U2 * (U2 * (U2 * 0.093073f + 0.309420f) - 1.000000f) + 0.597999f);
-    *slope_y = S * z * std::sqrt(1.f + *slope_x * *slope_x);
+    *slope_y = S * z * sqrt(1.f + *slope_x * *slope_x);
 }
 
 static vec3 TrowbridgeReitzSample(const vec3& wi, float alpha_x,
@@ -183,7 +183,7 @@ static vec3 TrowbridgeReitzSample(const vec3& wi, float alpha_x,
 float TrowbridgeReitzDistribution::D(const vec3& wh) const
 {
     float tan2Theta = Tan2Theta(wh);
-    if (std::isinf(tan2Theta)) return 0.;
+    if (isinf(tan2Theta)) return 0.;
     const float cos4Theta = Cos2Theta(wh) * Cos2Theta(wh);
     float e =
         (Cos2Phi(wh) / (alphax * alphax) + Sin2Phi(wh) / (alphay * alphay)) *
@@ -198,20 +198,20 @@ vec3 TrowbridgeReitzDistribution::Sample_wh(const vec3& wo, const vec2& u) const
         float cosTheta = 0, phi = (2 * Pi) * u[1];
         if (alphax == alphay) {
             float tanTheta2 = alphax * alphax * u[0] / (1.0f - u[0]);
-            cosTheta = 1 / std::sqrt(1 + tanTheta2);
+            cosTheta = 1 / sqrt(1 + tanTheta2);
         } else {
             phi =
-                std::atan(alphay / alphax * std::tan(2 * Pi * u[1] + .5f * Pi));
+                atan(alphay / alphax * tan(2 * Pi * u[1] + .5f * Pi));
             if (u[1] > .5f) phi += Pi;
-            float sinPhi = std::sin(phi), cosPhi = std::cos(phi);
+            float sinPhi = sin(phi), cosPhi = cos(phi);
             const float alphax2 = alphax * alphax, alphay2 = alphay * alphay;
             const float alpha2 =
                 1 / (cosPhi * cosPhi / alphax2 + sinPhi * sinPhi / alphay2);
             float tanTheta2 = alpha2 * u[0] / (1 - u[0]);
-            cosTheta = 1 / std::sqrt(1 + tanTheta2);
+            cosTheta = 1 / sqrt(1 + tanTheta2);
         }
         float sinTheta =
-            std::sqrt(std::max((float)0., (float)1. - cosTheta * cosTheta));
+            sqrt(max((float)0., (float)1. - cosTheta * cosTheta));
         wh = SphericalDirection(sinTheta, cosTheta, phi);
         if (!SameHemisphere(wo, wh)) wh = -wh;
     } else {
@@ -225,13 +225,13 @@ vec3 TrowbridgeReitzDistribution::Sample_wh(const vec3& wo, const vec2& u) const
 
 float TrowbridgeReitzDistribution::Lambda(const vec3& w) const
 {
-    float absTanTheta = std::abs(TanTheta(w));
-    if (std::isinf(absTanTheta)) return 0.;
+    float absTanTheta = abs(TanTheta(w));
+    if (isinf(absTanTheta)) return 0.;
     // Compute _alpha_ for direction _w_
     float alpha =
-        std::sqrt(Cos2Phi(w) * alphax * alphax + Sin2Phi(w) * alphay * alphay);
+        sqrt(Cos2Phi(w) * alphax * alphax + Sin2Phi(w) * alphay * alphay);
     float alpha2Tan2Theta = (alpha * absTanTheta) * (alpha * absTanTheta);
-    return (-1 + std::sqrt(1.f + alpha2Tan2Theta)) / 2;
+    return (-1 + sqrt(1.f + alpha2Tan2Theta)) / 2;
 }
 
 float MicrofacetDistribution::Pdf(const vec3& wo, const vec3& wh) const
@@ -247,17 +247,17 @@ float FrDielectric(float cosThetaI, float etaI, float etaT) {
     // Potentially swap indices of refraction
     bool entering = cosThetaI > 0.f;
     if (!entering) {
-        std::swap(etaI, etaT);
-        cosThetaI = std::abs(cosThetaI);
+        swap(etaI, etaT);
+        cosThetaI = abs(cosThetaI);
     }
 
     // Compute _cosThetaT_ using Snell's law
-    float sinThetaI = std::sqrt(std::max((float)0, 1 - cosThetaI * cosThetaI));
+    float sinThetaI = sqrt(max((float)0, 1 - cosThetaI * cosThetaI));
     float sinThetaT = etaI / etaT * sinThetaI;
 
     // Handle total internal reflection
     if (sinThetaT >= 1) return 1;
-    float cosThetaT = std::sqrt(std::max((float)0, 1 - sinThetaT * sinThetaT));
+    float cosThetaT = sqrt(max((float)0, 1 - sinThetaT * sinThetaT));
     float Rparl = ((etaT * cosThetaI) - (etaI * cosThetaT)) /
         ((etaT * cosThetaI) + (etaI * cosThetaT));
     float Rperp = ((etaI * cosThetaI) - (etaT * cosThetaT)) /
@@ -265,7 +265,7 @@ float FrDielectric(float cosThetaI, float etaI, float etaT) {
     return (Rparl * Rparl + Rperp * Rperp) / 2;
 }
 
-Spectrum ry::FresnelDielectric::Evaluate(float cosThetaI) const
+Spectrum FresnelDielectric::Evaluate(float cosThetaI) const
 {
     return FrDielectric(cosThetaI, etaI, etaT);
 }

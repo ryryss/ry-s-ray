@@ -1,51 +1,21 @@
 #include "denoiser.h"
 #include "sampler.hpp"
+#include "task.h"
 using namespace ry;
 using namespace std;
 
-vec3 BilateralDenoiser::Denoise(int x, int y, const std::vector<PixelInfo>& gBuffer)
+void TemporalDenoiser::Denoise(int x, int y, const PixelInfo* input, vec4* output)
 {
-    auto idx = [&](int x, int y) { return y * width + x; };
-    const PixelInfo& c = gBuffer[idx(x, y)];
-
-    vec3 sumColor(0.0f);
-    float sumWeight = 0.0f;
-    for (int dy = -radius.y; dy <= radius.y; dy++) {
-        for (int dx = -radius.x; dx <= radius.x; dx++) {
-            int nx = x + dx;
-            int ny = y + dy;
-            if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
-
-            const PixelInfo& neighbor = gBuffer[idx(nx, ny)];
-
-            float spatialDist2 = float(dx * dx + dy * dy);
-            float wSpatial = std::exp(-spatialDist2 / (2 * sigmaSpatial * sigmaSpatial));
-
-            float colorDist2 = dot(c.color - neighbor.color, c.color - neighbor.color);
-            float wColor = exp(-colorDist2 / (2 * sigmaColor * sigmaColor));
-
-            float normalDist = std::max(0.0f, 1.0f - dot(c.normal, neighbor.normal));
-            float wNormal = std::exp(-normalDist * normalDist / (2 * sigmaNormal * sigmaNormal));
-
-            float depthDiff = fabs(c.depth - neighbor.depth);
-            float wDepth = exp(-depthDiff * depthDiff / (2.0f * sigmaDepth * sigmaDepth));
-
-            float wAlbedo = 1.0f;
-            if (sigmaAlbedo > 0.0f) {
-                float albedoDist2 = length(c.albedo - neighbor.albedo);
-                wAlbedo = std::exp(-albedoDist2 * albedoDist2 / (2 * sigmaAlbedo * sigmaAlbedo));
-            }
-
-            float weight = wSpatial * wColor * wNormal * wAlbedo * wDepth;
-
-            sumColor += neighbor.color * weight;
-            sumWeight += weight;
-        }
-    }
-    return sumWeight > 0.0f ? sumColor / sumWeight : c.color;
+    gBuffer = input;
+    auto& t = Task::GetInstance();
+    t.Parallel2D(width, height, 32, [this, &output](uint16_t x, uint16_t y) {
+        output[y * width + x] = TemporalDenoise(x, y);
+    });
+    prevTempBuffer = tempBuffer;
+    memccpy(prevGBuffer.data(), gBuffer, width * height, width * height);
 }
 
-vec3 TemporalDenoiser::Denoise(int x, int y, const vector<PixelInfo>& gBuffer)
+vec4 TemporalDenoiser::TemporalDenoise(uint16_t x, uint16_t y)
 {
     int idx = y * width + x;
     const PixelInfo& curPixel = gBuffer[idx];
@@ -56,7 +26,7 @@ vec3 TemporalDenoiser::Denoise(int x, int y, const vector<PixelInfo>& gBuffer)
         tempBuffer[idx].M1 = curPixel.color;
         tempBuffer[idx].M2 = curPixel.color * curPixel.color;
         tempBuffer[idx].age = 1.0f;
-        return curPixel.color;
+        return vec4(curPixel.color, 1.0);
     }
     // 2) sample previous temporal moments and previous GBuffer normal/depth
     vec3 prevM1 = SampleBilinear<vec3>(prevUV.x, prevUV.y, width, height,
@@ -77,13 +47,13 @@ vec3 TemporalDenoiser::Denoise(int x, int y, const vector<PixelInfo>& gBuffer)
     // 3) history acceptance (normal & depth check)
     bool historyAccepted = true;
     if (dot(curPixel.normal, prevNormal) < normalThresh) { historyAccepted = false; }
-    if (std::abs(curPixel.depth - prevDepth) > depthThresh) { historyAccepted = false; }
-    
+    if (abs(curPixel.depth - prevDepth) > depthThresh) { historyAccepted = false; }
+
     vec3 clampedPrev = curPixel.color;
     if (historyAccepted) {
-    // 4) compute variance estimate from prev moments
+        // 4) compute variance estimate from prev moments
         vec3 prevVar = max(prevM2 - prevM1 * prevM1, vec3(1e-6f)); // channel-wise variance floor
-    // 5) optional: clamp the sampled prevM1 to current +- k * sigma
+        // 5) optional: clamp the sampled prevM1 to current +- k * sigma
         vec3 sigma = sqrt(prevVar);
         vec3 minv = curPixel.color - clampK * sigma;
         vec3 maxv = curPixel.color + clampK * sigma;
@@ -114,58 +84,63 @@ vec3 TemporalDenoiser::Denoise(int x, int y, const vector<PixelInfo>& gBuffer)
 
     tempBuffer[idx].M1 = newM1;
     tempBuffer[idx].M2 = newM2;
-    return newM1;
+    return { newM1, 1.0f };
 }
 
-vec3 ry::AtrousDenoiser::Denoise(int x, int y, const vector<PixelInfo>& gBuffer)
+void AtrousDenoiser::Denoise(int x, int y, const PixelInfo* input, vec4* output)
+{
+    gBuffer = input;
+    auto& t = Task::GetInstance();
+    step = 1;
+    for (int i = 0; i < iteration; i++) {
+        t.Parallel2D(width, height, 32, [this, &output](uint16_t x, uint16_t y) {
+            output[y * width + x] = AtrousDenoise(x, y);
+        });
+        sigmaColor = sigmaColor0 * powf(0.5f, i);
+        step = 1 << i;
+        swap(ping, pong);
+    }
+}
+
+vec4 AtrousDenoiser::AtrousDenoise(uint16_t x, uint16_t y)
 {
     int idx = y * width + x;
     const PixelInfo& center = gBuffer[idx];
-    const vec3 centerColor = ping[idx];
+    vec3 centerColor = ping[idx];
 
     vec3 sumColor = vec3(0);
     float sumWeight = 0.0f;
 
-    // ид trous 5x5 kernel
-    const static int offsets[5] = { -2, -1, 0, 1, 2 };
     const static float kernel[5] = { 1.f / 16, 1.f / 4, 3.f / 8, 1.f / 4, 1.f / 16 };
 
-    for (int dy = 0; dy < 5; ++dy) {
-        for (int dx = 0; dx < 5; ++dx) {
-            int ox = x + offsets[dx] * step;
-            int oy = y + offsets[dy] * step;
-            if (ox < 0 || oy < 0 || ox >= width || oy >= height)
-                continue;
+    for (int dy = -radius.x; dy <= radius.x; ++dy) {
+        for (int dx = -radius.x; dx <= radius.x; ++dx) {
+            int sx = x + dx * step;
+            int sy = y + dy * step;
+            if (sx < 0 || sy < 0 || sx >= width || sy >= height) { continue; }
+            int sIdx = sy * width + sx;
+            const PixelInfo& nb = gBuffer[sIdx];
+            vec3 nbColor = ping[sIdx];
 
-            const PixelInfo& nb = gBuffer[oy * width + ox];
-            const vec3 nbColor = ping[oy * width + ox];
+            float wRt = 1.0f;
+            if (iteration > 0) {
+                float dc = glm::length(centerColor - nbColor);
+                wRt = expf(-(dc * dc) / (sigmaColor * sigmaColor));
+            }
 
-            // spatial kernel weight
-            float wSpatial = kernel[dx] * kernel[dy];
+            float dn = glm::length(center.normal - nb.normal);
+            float w_n = expf(-(dn * dn) / (sigmaNormal * sigmaNormal));
 
-            // color weight (squared distance)
-            float colorDist2 = dot(centerColor - nbColor, centerColor - nbColor);
-            float wColor = exp(-colorDist2 / (2.f * sigmaColor * sigmaColor));
+            float dxp = glm::length(center.position - nb.position);
+            float w_x = expf(-(dxp * dxp) / (sigmaPosition * sigmaPosition));
 
-            // normal weight (angle difference)
-            float ndot = max(0.f, dot(center.normal, nb.normal));
-            float wNormal = exp(-pow(1.f - ndot, 2.f) / (2.f * sigmaNormal * sigmaNormal));
+            float w = wRt * w_n * w_x;
 
-            // albedo weight
-            float albedoDist2 = dot(center.albedo - nb.albedo, center.albedo - nb.albedo);
-            float wAlbedo = exp(-albedoDist2 / (2.f * sigmaAlbedo * sigmaAlbedo));
-
-            // depth weight (use relative difference)
-            float depthDiff = abs(center.depth - nb.depth) / max(center.depth, 1e-3f);
-            // float depthDiff = abs(center.depth - nb.depth);
-            float wDepth = exp(-depthDiff * depthDiff / (2.f * sigmaDepth * sigmaDepth));
-
-            float weight = wSpatial * wColor * wNormal * wAlbedo * wDepth;
-
-            sumColor += nbColor * weight;
-            sumWeight += weight;
+            float kernel_w = kernel[dx + radius.x] * kernel[dy + radius.x];
+            sumColor += nb.color * w * kernel_w;
+            sumWeight += w * kernel_w;
         }
     }
-    pong[idx] = sumWeight > 1e-5f ? sumColor / sumWeight : centerColor;
-    return pong[idx];
+    pong[idx] = sumWeight > 1e-5f ? sumColor / sumWeight : center.color;
+    return { pong[idx], 1.0 };
 }

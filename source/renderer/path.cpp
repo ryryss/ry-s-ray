@@ -13,10 +13,10 @@ PathRenderer::PathRenderer()
     maxTraces = 1;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
     denoisers.push_back(make_unique<TemporalDenoiser>(ivec2(3)));
-    denoisers.push_back(make_unique<AtrousDenoiser>(ivec2(3)));
+    denoisers.push_back(make_unique<AtrousDenoiser>(ivec2(2)));
 }
 
-void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
+void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* out)
 {
     cam = &s->GetActiveCamera();
 
@@ -49,75 +49,20 @@ void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* p)
     }
     sppBuffer.clear();
     sppBuffer.resize(scrw * scrh);
-}
 
-void ry::PathRenderer::Denoising()
-{ 
-    AtrousDenoiser* atrousDenoiser = (AtrousDenoiser*)denoisers[1].get();
-    auto& ping = atrousDenoiser->GetPing();
-
-    TemporalDenoiser* temporalDenoiser = (TemporalDenoiser*)denoisers[0].get();
-    ParallelDynamic(32, [&](uint16_t x, uint16_t y) {
-        auto idx = y * scrw + x;
-        ping[idx] = temporalDenoiser->Denoise(x, y, gBuffer);
-        // output[idx] = pow(vec4(temporalRes, 1.0), vec4(GammaSRGB));
-    });
-    temporalDenoiser->AfterDenoise();
-    temporalDenoiser->KeepGBuffer(gBuffer);
-
-    constexpr int iteration = 5;
-    atrousDenoiser->SetTteration(iteration);
-    for (int iter = 0; iter < iteration; ++iter) {
-        ParallelDynamic(32, [&](uint16_t x, uint16_t y) {
-            auto idx = y * scrw + x;
-            atrousDenoiser->Denoise(x, y, gBuffer);
-        });
-        atrousDenoiser->SwapPingPong();
-    }
-
-    // set result
-    const auto& res = atrousDenoiser->GetPong();
     for (int y = 0; y < scrh; y++) {
         for (int x = 0; x < scrw; x++) {
             int idx = y * scrw + x;
-            output[idx] = pow(vec4(res[idx], 1.0), vec4(GammaSRGB));
+            output[idx] = pow(output[idx], vec4(GammaSRGB));
         }
     }
 }
 
-void ry::PathRenderer::ParallelDynamic(uint16_t blockSize, function<void(uint16_t x, uint16_t y)> work)
-{
-    auto& t = Task::GetInstance();
-#ifdef DEBUG
-    auto wCnt = 1;
-#else
-    auto wCnt = t.WokerCnt();
-#endif
-    uint32_t totalBlocks = (scrh + blockSize - 1) / blockSize;
-    std::atomic<uint32_t> nextBlock{ 0 };
-
-    for (uint32_t i = 0; i < wCnt; i++) {
-        t.Add([&, i]() {
-            while (true) {
-                uint32_t blockIdx = nextBlock.fetch_add(1);
-                if (blockIdx >= totalBlocks) {
-                    break;
-                }
-
-                uint32_t yStart = blockIdx * blockSize;
-                uint32_t yEnd = std::min(yStart + blockSize, (uint32_t)scrh);
-                for (uint16_t y = yStart; y < yEnd; y++) {
-                    for (uint16_t x = 0; x < scrw; x++) {
-#ifdef DEBUG
-                        if (x >= 300 && x <= 500 && y >= 300 && y <= 500)
-#endif // DEBUG
-                        work(x, y);
-                    }
-                }
-            }
-        });
+void PathRenderer::Denoising()
+{ 
+    for (auto& d : denoisers) {
+        d->Denoise(scrw, scrh, gBuffer.data(), output);
     }
-    t.Excute();
 }
 
 Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
@@ -171,12 +116,13 @@ void PathRenderer::UpdateGBuffer(const Interaction& isect, PixelInfo* pInf)
     pInf->motion = prevScreen - currScreen;
 
     pInf->normal = isect.normal;
-    pInf->albedo = isect.mat->GetAlbedo();
+    pInf->position = isect.p;
 }
 
 void PathRenderer::PathTracing()
 {
-    ParallelDynamic(16, [this](uint16_t x, uint16_t y) {
+    auto& t = Task::GetInstance();
+    t.Parallel2D(scrw, scrh, 16, [this](uint16_t x, uint16_t y) {
         auto idx = y * scrw + x;
         auto& color = Li(RayGeneration(x, y), &gBuffer[idx]);
         sppBuffer[idx] += color.c;

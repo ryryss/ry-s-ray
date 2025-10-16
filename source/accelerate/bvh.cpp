@@ -4,8 +4,8 @@ using namespace std;
 using namespace ry;
 
 BVH::BVH(Model* m, uint64_t geomCnt, int max) : model(m), maxLeafSize(max) {
-    std::vector<uint64_t> indices(geomCnt);
-    std::iota(indices.begin(), indices.end(), 0);
+    vector<uint64_t> indices(geomCnt);
+    iota(indices.begin(), indices.end(), 0);
     root = BuildNode(indices);
 }
 
@@ -23,14 +23,14 @@ void BVH::ComputeBounds(BVHNode& node, const vector<uint64_t>& indices)
         node.cBox.expand(tri.c);
     }
     /*expand diagonally by a certain percentage
-    ry::vec3 delta = (b.box.max - b.box.min) * (0.5f);
+    vec3 delta = (b.box.max - b.box.min) * (0.5f);
     b.box.min -= delta;
     b.box.max += delta;*/
 }
 
-std::shared_ptr<BVHNode> BVH::BuildNode(vector<uint64_t>& indices)
+shared_ptr<BVHNode> BVH::BuildNode(vector<uint64_t>& indices)
 {
-    auto node = std::make_shared<BVHNode>();
+    auto node = make_shared<BVHNode>();
     node->i = leafCnt++;
     ComputeBounds(*node.get(), indices);
 
@@ -128,14 +128,14 @@ void BVH::MidSplit(const shared_ptr<BVHNode> node, vector<uint64_t>& indices, ve
     auto axis = node->SplitAxis();
     // use triangle centroid to sort
     auto& tris = model->triangles;
-    std::sort(indices.begin(), indices.end(),
+    sort(indices.begin(), indices.end(),
         [&](uint64_t a, uint64_t b) {
             return tris[a].c[axis] < tris[b].c[axis];
         });
     // median-split
     size_t mid = indices.size() / 2;
-    l = std::vector<uint64_t>(indices.begin(), indices.begin() + mid);
-    r = std::vector<uint64_t>(indices.begin() + mid, indices.end());
+    l = vector<uint64_t>(indices.begin(), indices.begin() + mid);
+    r = vector<uint64_t>(indices.begin() + mid, indices.end());
 }
 
 void BVH::TraverseBVH(vector<uint64_t>& res, const Ray& ray, shared_ptr<BVHNode> node)

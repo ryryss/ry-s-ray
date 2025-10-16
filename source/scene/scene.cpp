@@ -62,7 +62,7 @@ bool Scene::Intersect(const Ray& r, Interaction& isect) const
     return hit;
 }
 
-const Light* ry::Scene::IntersectEmissive(const Ray& r, Interaction& isect) const
+const Light* Scene::IntersectEmissive(const Ray& r, Interaction& isect) const
 {
     const Light* light = nullptr;
     for (int i = 0; i < lights.size(); i++) {
@@ -74,7 +74,7 @@ const Light* ry::Scene::IntersectEmissive(const Ray& r, Interaction& isect) cons
     return light;
 }
 
-void Scene::ParseModel(std::shared_ptr<Model> model)
+void Scene::ParseModel(shared_ptr<Model> model)
 { 
     cameras.insert(cameras.begin(), model->cameras.begin(), model->cameras.end());
     lights.insert(lights.begin(), model->lights.begin(), model->lights.end());

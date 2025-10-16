@@ -5,7 +5,7 @@ struct PixelInfo {
     vec3 normal;
     float depth;
     // float roughness;
-    vec3 albedo;
+    vec3 position;
     vec2 motion;
 };
 
@@ -18,34 +18,20 @@ struct TemporalInfo {
 class Denoiser {
 public:
     virtual ~Denoiser() {};
-    Denoiser(const ivec2& r)
-        : radius(r), invRadius(ivec2(1 / radius.x, 1 / radius.y)) {}
-    virtual vec3 Denoise(int x, int y, const std::vector<PixelInfo>& gBuffer) = 0;
+    Denoiser(const ivec2& r) : radius(r) {}
+    virtual void Denoise(int x, int y, const PixelInfo* input, vec4* output) = 0;
     virtual void ReSize(int w, int h) { width = w; height = h; }
-    virtual void AfterDenoise() {};
 protected:
-    const ivec2 radius, invRadius;
+    const ivec2 radius;
     int width, height;
-};
-
-class BilateralDenoiser : public Denoiser {
-public:
-    BilateralDenoiser(const ivec2& r) : Denoiser(r) {}
-
-    vec3 Denoise(int x, int y, const std::vector<PixelInfo>& gBuffer) override;
-private:
-    float sigmaSpatial = 2.0f;
-    float sigmaColor = 0.3f;
-    float sigmaNormal = 0.6f;
-    float sigmaAlbedo = 0.5f;
-    float sigmaDepth = 0.1f;
+    const PixelInfo* gBuffer;
 };
 
 class AtrousDenoiser : public Denoiser {
 public:
     AtrousDenoiser(const ivec2& r) : Denoiser(r) {}
 
-    vec3 Denoise(int x, int y, const std::vector<PixelInfo>& gBuffer) override;
+    void Denoise(int x, int y, const PixelInfo* gBuffer, vec4* output) override;
     inline void ReSize(int w, int h) override {
         width = w;
         height = h;
@@ -54,44 +40,27 @@ public:
         pong.clear();
         pong.resize(w * h);
     }
-    inline std::vector<vec3>& GetPing() {
-        return ping;
-    }
-    inline std::vector<vec3>& GetPong() {
-        return pong;
-    }
-    inline void SetTteration(int i) {
-        iteration = i;
-        step = 1; // reset step
-    }
-    void SwapPingPong() {
-        std::swap(ping, pong);
-        step *= 2;
-    }
 
 private:
-    int iteration = 3;
+    vec4 AtrousDenoise(uint16_t x, uint16_t y);
+
+    int iteration = 5;
     int step = 1;
     std::vector<vec3> ping;
     std::vector<vec3> pong;
 
-    const float sigmaColor = 3.0f;
-    const float sigmaNormal = 0.3f;
-    const float sigmaDepth = 0.05f;
-    const float sigmaAlbedo = 0.2f;
+    const float sigmaColor0 = 5.0f;
+    float sigmaColor = 40.0f;
+    float sigmaNormal = 0.05f;
+    float sigmaPosition = 0.2f;
 };
 
 class TemporalDenoiser : public Denoiser {
 public:
     TemporalDenoiser(const ivec2& r) : Denoiser(r) {}
 
-    vec3 Denoise(int x, int y, const std::vector<PixelInfo>& gBuffer) override;
-    inline void AfterDenoise() override {
-        prevTempBuffer = tempBuffer;
-    };
-    inline void KeepGBuffer(const std::vector<PixelInfo>& gBuffer) {
-        prevGBuffer = gBuffer;
-    }
+    void Denoise(int x, int y, const PixelInfo* input, vec4* output) override;
+
     inline void ReSize(int w, int h) override {
         width = w;
         height = h;
@@ -103,6 +72,8 @@ public:
         prevTempBuffer.resize(w * h);
     }
 private:
+    vec4 TemporalDenoise(uint16_t x, uint16_t y);
+
     std::vector<PixelInfo> prevGBuffer;
     std::vector<TemporalInfo> tempBuffer;
     std::vector<TemporalInfo> prevTempBuffer;

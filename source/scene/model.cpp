@@ -196,7 +196,7 @@ void Model::ParseEmissiveMaterial(int num, const vector<uint64_t>& ids)
     lights.push_back(light);
 }
 
-std::vector<uint32_t> Model::ParseVertIdx(const gltf::Primitive& p)
+vector<uint32_t> Model::ParseVertIdx(const gltf::Primitive& p)
 {
     vector<uint32_t> res;
     if (p.indices < 0) {
@@ -230,7 +230,7 @@ std::vector<uint32_t> Model::ParseVertIdx(const gltf::Primitive& p)
 void Model::ParsePrimitive(const gltf::Primitive& p, const mat4& m)
 {
     const auto idx = move(ParseVertIdx(p));
-    std::vector<Vertex> vert;
+    vector<Vertex> vert;
     ParsePosition(p, vert);
     ParseTexTureCoord(p, vert);
     ParseNormal(p, vert);
@@ -333,7 +333,7 @@ void Model::ParseImage()
     }
 }
 
-void Model::ParseTexTureCoord(const gltf::Primitive& p, std::vector<Vertex>& vert)
+void Model::ParseTexTureCoord(const gltf::Primitive& p, vector<Vertex>& vert)
 {
     // https://github.khronos.org/glTF-Tutorials/gltfTutorial/gltfTutorial_013_SimpleTexture.html
     // TODO: mult texturescoord sup
@@ -383,7 +383,7 @@ void Model::ParseTexTureCoord(const gltf::Primitive& p, std::vector<Vertex>& ver
     }
 }
 
-void Model::ParseNormal(const gltf::Primitive& p, std::vector<Vertex>& vert)
+void Model::ParseNormal(const gltf::Primitive& p, vector<Vertex>& vert)
 {
     auto it = p.attributes.find("NORMAL");
     if (it == p.attributes.end()) {
@@ -417,7 +417,7 @@ void Model::ParseNormal(const gltf::Primitive& p, std::vector<Vertex>& vert)
     }
 }
 
-void Model::ParseVertColor(const gltf::Primitive& p, std::vector<Vertex>& vert)
+void Model::ParseVertColor(const gltf::Primitive& p, vector<Vertex>& vert)
 {
     auto it = p.attributes.find("COLOR_0");
     if (it == p.attributes.end()) {
@@ -471,7 +471,7 @@ void Model::ParseVertColor(const gltf::Primitive& p, std::vector<Vertex>& vert)
     }
 }
 
-void Model::ParsePosition(const gltf::Primitive& p, std::vector<Vertex>& vert)
+void Model::ParsePosition(const gltf::Primitive& p, vector<Vertex>& vert)
 {
     auto it = p.attributes.find("POSITION");
     if (it == p.attributes.end()) {
