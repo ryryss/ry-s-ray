@@ -33,6 +33,7 @@ public:
     RGBSpectrum operator-(const RGBSpectrum& c2) const {
         return RGBSpectrum(c - c2.c);
     }
+
     inline bool IsBlack() const {
         for (int i = 0; i < 3; ++i) {
             if (c[i] != 0.) { return false; }

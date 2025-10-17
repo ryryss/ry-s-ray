@@ -30,7 +30,7 @@ vec4 AtrousDenoiser::AtrousDenoise(uint16_t x, uint16_t y)
     const PixelInfo& center = gBuffer[p];
     const auto& centerColor = ping[p]; // must use new color
 
-    vec3 sumColor = vec3(0);
+    Spectrum sumColor(0);
     float sumWeight = 0.0f;
     for (int dy = -radius.x; dy <= radius.x; ++dy) {
         for (int dx = -radius.x; dx <= radius.x; ++dx) {
@@ -125,7 +125,7 @@ void Spatiotemporal::TemporalAccumulation(uint16_t x, uint16_t y)
         newM = glm::mix(prevM.M, L, alpha);
         newM2 = glm::mix(prevM.M2, L2, alpha);
         currTemporal.age = min(prevM.age + 1.0f, 100.0f);
-        currTemporal.color = glm::mix(currColor, prevM.color, alpha);
+        currTemporal.color = glm::mix(currColor.c, prevM.color.c, alpha);
     } else {
         newM = L;
         newM2 = L2;
@@ -146,7 +146,7 @@ vec4 Spatiotemporal::SpatialFilter(uint16_t x, uint16_t y)
     const auto& center = gBuffer[p];
     const auto& centerColor = ping[p]; // must use new color
 
-    vec3 sumColor = vec3(0);
+    Spectrum sumColor(0);
     float sumWeight = 0.0f;
     float var = 0.0;
     for (int dy = -radius.x; dy <= radius.x; ++dy) {

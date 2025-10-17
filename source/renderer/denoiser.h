@@ -76,6 +76,17 @@ public:
     inline void ReSize(int w, int h) override {
         width = w;
         height = h;
+        AtrousDenoiser::ReSize(w, h);
+        temporalBuffer.clear();
+        temporalBuffer.resize(w * h);
+        prevTemporalBuffer.clear();
+        prevTemporalBuffer.resize(w * h);
+        prevGBuffer.clear();
+        prevGBuffer.resize(w * h);
+        varPing.clear();
+        varPing.resize(w * h);
+        varPong.clear();
+        varPong.resize(w * h);
     }
 private:
     vec4 SpatiotemporalDenoise(uint16_t x, uint16_t y);
