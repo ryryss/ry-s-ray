@@ -12,7 +12,7 @@ PathRenderer::PathRenderer()
 {
     maxTraces = 1;
     cout << "use " << maxTraces << " ray for every pixel" << endl;
-    denoisers.push_back(make_unique<TemporalDenoiser>(ivec2(3)));
+    denoisers.push_back(make_unique<Spatiotemporal>(ivec2(2)));
     // denoisers.push_back(make_unique<AtrousDenoiser>(ivec2(2)));
 }
 

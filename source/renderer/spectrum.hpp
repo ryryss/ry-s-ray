@@ -33,11 +33,14 @@ public:
     RGBSpectrum operator-(const RGBSpectrum& c2) const {
         return RGBSpectrum(c - c2.c);
     }
-    bool IsBlack() const {
+    inline bool IsBlack() const {
         for (int i = 0; i < 3; ++i) {
             if (c[i] != 0.) { return false; }
         }
         return true;
+    }
+    inline float Luminance() const {
+        return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
     }
     vec3 c;
 };
