@@ -52,7 +52,7 @@ protected:
     std::vector<Spectrum> pong;
 
     const float sigmaColor0 = 2.0f;
-    float sigmaColor = 5.0f;
+    float sigmaColor;
     float sigmaNormal = 0.3f;
     float sigmaPosition = 0.1f;
     float sigmaAlbedo = 0.08f;
@@ -89,7 +89,6 @@ public:
         varPong.resize(w * h);
     }
 private:
-    vec4 SpatiotemporalDenoise(uint16_t x, uint16_t y);
     void TemporalAccumulation(uint16_t x, uint16_t y);
     vec4 SpatialFilter(uint16_t x, uint16_t y);
 

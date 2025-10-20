@@ -4,7 +4,7 @@ namespace ry {
 class RGBSpectrum {
 public:
     RGBSpectrum(float v = 0.f) : c{ v } {}
-    RGBSpectrum(vec3 v) : c(v) {}
+    RGBSpectrum(const vec3& v) : c(v) {}
 
     RGBSpectrum& operator+=(const RGBSpectrum& c2) {
         c += c2.c;

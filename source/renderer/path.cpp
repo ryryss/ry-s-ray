@@ -126,9 +126,9 @@ void PathRenderer::PathTracing()
     t.Parallel2D(scrw, scrh, 16, [this](uint16_t x, uint16_t y) {
         auto idx = y * scrw + x;
         auto& color = Li(RayGeneration(x, y), &gBuffer[idx]);
-        sppBuffer[idx] += color.c;
+        sppBuffer[idx] += color;
         gBuffer[idx].color = sppBuffer[idx] / (float)currentTraces;
-        // output[idx] = vec4(gBuffer[idx].color, 1.0f);
+        output[idx] = vec4(gBuffer[idx].color.c, 1.0f);
     });
 }
 

@@ -9,17 +9,17 @@ void AtrousDenoiser::Denoise(int x, int y, const PixelInfo* input, vec4* output)
     gBuffer = input;
     step = 1;
     for (int i = 0; i < width * height; i++) {
-        // use temporal output or path trace output as input
+        // use output of the previous stage as input
         ping[i] = vec3(output[i]);
     }
 
     auto& t = Task::GetInstance();
     for (int i = 0; i < iteration; i++) {
+        sigmaColor = sigmaColor0 * powf(0.5f, i);
+        step = 1 << i;
         t.Parallel2D(width, height, 32, [this, &output](uint16_t x, uint16_t y) {
             output[y * width + x] = AtrousDenoise(x, y);
         });
-        sigmaColor = sigmaColor0 * powf(0.5f, i);
-        step = 1 << i;
         swap(ping, pong);
     }
 }
@@ -38,8 +38,8 @@ vec4 AtrousDenoiser::AtrousDenoise(uint16_t x, uint16_t y)
             int sy = y + dy * step;
             if (sx < 0 || sy < 0 || sx >= width || sy >= height) { continue; }
             int q = sy * width + sx;
-            const PixelInfo& nb = gBuffer[q]; // must use new color
-            const auto& nbColor = ping[q];
+            const PixelInfo& nb = gBuffer[q];
+            const auto& nbColor = ping[q]; // must use new color
             // color weight
             float wRt = 1.0f;
             if (step > 1) {
@@ -66,20 +66,22 @@ vec4 AtrousDenoiser::AtrousDenoise(uint16_t x, uint16_t y)
     return { pong[p].c, 1.0 };
 }
 
-void ry::Spatiotemporal::Denoise(int x, int y, const PixelInfo* input, vec4* output)
+void Spatiotemporal::Denoise(int x, int y, const PixelInfo* input, vec4* output)
 {
     gBuffer = input;
     auto& t = Task::GetInstance();
     t.Parallel2D(width, height, 32, [this](uint16_t x, uint16_t y) {
         TemporalAccumulation(x, y);
     });
+    // prevGBuffer = gBuffer;
+    prevTemporalBuffer = temporalBuffer;
 
     for (int i = 0; i < iteration; i++) {
+        sigmaColor = sigmaColor0 * powf(0.5f, i);
+        step = 1 << i;
         t.Parallel2D(width, height, 32, [this, &output](uint16_t x, uint16_t y) {
             output[y * width + x] = SpatialFilter(x, y);
         });
-        sigmaColor = sigmaColor0 * powf(0.5f, i);
-        step = 1 << i;
         swap(ping, pong);
         swap(varPing, varPong);
     }
@@ -108,7 +110,7 @@ void Spatiotemporal::TemporalAccumulation(uint16_t x, uint16_t y)
     }
     // const auto& prevM = SampleBilinear<TemporalInfo>(prevUV.x, prevUV.y, width, height,
     //     [&](int x, int y) { return &prevTemporalBuffer[y * width + x]; }
-    // );
+    // ); 
     const auto& prevM = prevTemporalBuffer[prevCoord.y * width + prevCoord.x];
     // Where our temporal history is limited (<4 frames aer a disocclusion), 
     // we instead estimate the variance σ2i spatially
@@ -138,6 +140,9 @@ void Spatiotemporal::TemporalAccumulation(uint16_t x, uint16_t y)
     currTemporal.M = newM;
     currTemporal.M2 = newM2;
     currTemporal.var = var;
+
+    // set spatial input
+    ping[idx] = currTemporal.color;
 }
 
 vec4 Spatiotemporal::SpatialFilter(uint16_t x, uint16_t y)

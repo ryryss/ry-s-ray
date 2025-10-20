@@ -17,7 +17,7 @@ private:
     Spectrum EstimateDirect(const vec3& wo, const Interaction& isect);
 
     vec4* output;
-    std::vector<vec3> sppBuffer;
+    std::vector<Spectrum> sppBuffer;
     float tMin, tMax;
     uint16_t maxTraces = 1; // spp
     uint16_t currentTraces = 0;
