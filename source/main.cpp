@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
     scene.AddModel(input);
     auto& d = Display::GetInstance();
 
-    int keepRender = 1000;
+    int keepRender = 10;
     PathRenderer renderer;
     thread t([&](){
         while (keepRender--) {
