@@ -4,7 +4,6 @@
 
 using namespace ry;
 using namespace std;
-using namespace std::chrono;
 
 int main(int argc, char* argv[]) {
     string input; 
@@ -22,9 +21,7 @@ int main(int argc, char* argv[]) {
     PathRenderer renderer;
     thread t([&](){
         while (keepRender--) {
-            auto now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
             renderer.Render(&scene, d.getWindowWidth(), d.getWindowHeight(), d.GetPixels().data());
-            cout << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - now << endl;
         }
     });
     t.detach();

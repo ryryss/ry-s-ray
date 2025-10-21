@@ -5,6 +5,7 @@
 using namespace std;
 using namespace ry;
 using namespace glm;
+using namespace std::chrono;
 // Ambient
 vec4 A = vec4(0.051, 0.051, 0.051, 1.0) * 1.0f;
 
@@ -44,9 +45,14 @@ void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* ou
     for (int i = 1; i <= maxTraces; i++) {
         cout << "start " << currentTraces << "-th rayray" << endl;
         currentTraces = i;
+        auto now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
         PathTracing();
-        Denoising();
+        cout << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - now << endl;
     }
+    auto now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    Denoising();
+    cout << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - now << endl;
+
     sppBuffer.clear();
     sppBuffer.resize(scrw * scrh);
 
@@ -56,6 +62,7 @@ void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* ou
             output[idx] = pow(output[idx], vec4(GammaSRGB));
         }
     }
+    cout << "render over" << endl;
 }
 
 void PathRenderer::Denoising()

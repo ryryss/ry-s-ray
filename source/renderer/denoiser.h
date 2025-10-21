@@ -89,7 +89,7 @@ public:
         varPong.resize(w * h);
     }
 private:
-    TemporalInfo* ReprojectPrevPixel(const vec2& prevCoord);
+    ivec2 ReprojectPrevPixel(const vec2& prevCoord);
     void TemporalAccumulation(uint16_t x, uint16_t y);
     vec4 SpatialFilter(uint16_t x, uint16_t y);
 

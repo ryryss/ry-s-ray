@@ -76,7 +76,12 @@ void Spatiotemporal::Denoise(int x, int y, const PixelInfo* input, vec4* output)
 #ifdef DEBUG
     static_assert(std::is_trivially_copyable_v<PixelInfo>, "PixelInfo must be trivially copyable");
 #endif // DEBUG
-    memcpy(prevGBuffer.data(), gBuffer, prevGBuffer.size());
+    // memcpy(prevGBuffer.data(), gBuffer, prevGBuffer.size());
+    t.Parallel2D(width, height, 32, [&output, this](uint16_t x, uint16_t y) {
+        uint32_t idx = y * width + x;
+        prevGBuffer[idx] = gBuffer[idx];
+        // output[idx] = vec4(ping[idx].c, 1.0);
+    });
 
     for (int i = 0; i < iteration; i++) {
         sigmaColor = sigmaColor0 * powf(0.5f, i);
@@ -101,16 +106,13 @@ void Spatiotemporal::Denoise(int x, int y, const PixelInfo* input, vec4* output)
     }
 }
 
-TemporalInfo* Spatiotemporal::ReprojectPrevPixel(const vec2& prevCoord)
+ivec2 Spatiotemporal::ReprojectPrevPixel(const vec2& prevCoord)
 {
     vec2 prevUV = prevCoord / vec2(width, height);
-    if (prevUV.x < 0.0 || prevUV.x > 1.0 || prevUV.y < 0.0 || prevUV.y > 1.0) {
-        return nullptr;
-    }
-    const auto& prevPixel = SampleNearest<ivec2>(prevCoord.x, prevCoord.y, width, height,
+    const auto& prevPixel = SampleNearest<ivec2>(prevUV.x, prevUV.y, width, height,
         [&](int x, int y) { return ivec2(x, y); }
     );
-    return &prevTemporalBuffer[prevPixel.y * width + prevPixel.x];
+    return prevPixel;
 }
 
 void Spatiotemporal::TemporalAccumulation(uint16_t x, uint16_t y)
@@ -122,17 +124,19 @@ void Spatiotemporal::TemporalAccumulation(uint16_t x, uint16_t y)
     float L2 = L * L;
     auto& currTemporal = temporalBuffer[idx];
 
-    auto prevTemporal = ReprojectPrevPixel(vec2(x, y) + currPixel.motion);
-    if(prevTemporal) {
+    auto oldCoord = ReprojectPrevPixel(vec2(x, y) + currPixel.motion);
+    if (oldCoord.x >= width || oldCoord.x < 0 || oldCoord.y > height || oldCoord.y <0) {
         currTemporal.M = L;
         currTemporal.M2 = L2;
         currTemporal.age = 1.0f;
         currTemporal.color = currPixel.color.c;
     }
-
+    int oldIdx = oldCoord.y * width + oldCoord.x;
+    const auto& prevTemporal = prevTemporalBuffer[oldIdx];
+    const auto& prevPixel = prevGBuffer[oldIdx];
     // Where our temporal history is limited (<4 frames aer a disocclusion), 
     // we instead estimate the variance σ2i spatially
-    if (prevTemporal->age <= 4) {
+    if (prevTemporal.age <= 4) {
         currTemporal.var = 1.0f; // TODO
     }
     // To improve image quality under motion we resample Ci−1 by
@@ -141,11 +145,11 @@ void Spatiotemporal::TemporalAccumulation(uint16_t x, uint16_t y)
     float newM2 = 1.0;
     float ndot = dot(currPixel.normal, prevPixel.normal);
     float dz = abs(currPixel.depth - prevPixel.depth);
-    if (ndot > 0.95f && dz < 0.01f) {
-        newM = glm::mix(prevM.M, L, alpha);
-        newM2 = glm::mix(prevM.M2, L2, alpha);
-        currTemporal.age = min(prevM.age + 1.0f, 100.0f);
-        currTemporal.color = glm::mix(currColor.c, prevM.color.c, alpha);
+    if (ndot > 0.9f && dz < 0.05f) {
+        newM = glm::mix(L, prevTemporal.M, alpha);
+        newM2 = glm::mix(L2, prevTemporal.M2, alpha);
+        currTemporal.age = min(prevTemporal.age + 1.0f, 100.0f);
+        currTemporal.color = glm::mix(prevTemporal.color.c, currColor.c, alpha);
     } else {
         newM = L;
         newM2 = L2;
