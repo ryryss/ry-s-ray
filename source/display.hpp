@@ -15,8 +15,8 @@ public:
         glDeleteTextures(1, &texture);
         glfwTerminate();
     }
-    static Display& GetInstance(uint16_t width = 600*1.7777, uint16_t height = 600, const char* title = "title") {
-        static Display instance(width, height, title);
+    static Display& GetInstance(const char* title = "title") {
+        static Display instance(title);
         return instance;
     }
     std::vector<vec4>& GetPixels() {
@@ -41,6 +41,8 @@ public:
         glTexCoord2f(0.0f, 1.0f); glVertex2f(-1.0f, 1.0f);
         glEnd();
 
+        DrawConTrolWindow();
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -48,9 +50,40 @@ public:
     uint16_t getWindowWidth() const { return width; }
     uint16_t getWindowHeight() const { return height; }
 private:
-    Display(uint16_t w, uint16_t h, const char* title) : width(w), height(h) {
+    void DrawConTrolWindow() {
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::Begin("Render Controls");
+        // ImGui::Text("Renderer Status: %s", keepRender > 0 ? "Rendering..." : "Stopped");
+
+        static float roughness = 0.5f;
+        static float metallic = 0.1f;
+        ImGui::SliderFloat("Roughness", &roughness, 0.0f, 1.0f);
+        ImGui::SliderFloat("Metallic", &metallic, 0.0f, 1.0f);
+
+        ImGui::End();
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    }
+
+    Display(const char* title) {
         if (!glfwInit()) {
             throw std::runtime_error("Failed to initialize GLFW");
+        }
+        const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+        if (mode) {
+            int screenWidth = mode->width;
+            int screenHeight = mode->height;
+            float scaleWidth = 1.0;
+            float scaleHeight = 1.0;
+            glfwGetMonitorContentScale(glfwGetPrimaryMonitor(), &scaleWidth, &scaleHeight);
+            width = screenWidth * scaleWidth / 2;
+            height = screenHeight * scaleHeight / 2;
+        } else {
+            height = 1440;
+            width = height * 1.6667;
         }
 
         window = glfwCreateWindow(width, height, title, NULL, NULL);
@@ -69,7 +102,7 @@ private:
         });
 
         glGenTextures(1, &texture);
-        ResizeTexture(w, h);
+        ResizeTexture(width, height);
 
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -77,6 +110,10 @@ private:
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
         ImGui_ImplGlfw_InitForOpenGL(window, true);
         ImGui_ImplOpenGL3_Init("#version 330");
+
+        io.FontGlobalScale = getWindowHeight() * 0.04f / 16.0f;
+        // set main control window default size
+        ImGui::SetNextWindowSize(ImVec2(width * 0.1f, height * 0.1f), ImGuiCond_Appearing);
     }
 
     void ResizeTexture(uint16_t w, uint16_t h) {

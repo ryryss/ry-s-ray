@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
 
     while (1) {
         d.UpdateFrame(); // present to display
-        Sleep(50);
+        Sleep(5);
     }
     keepRender = false;
     return 0;

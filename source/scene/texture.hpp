@@ -79,30 +79,30 @@ namespace TextureSampler {
         float lodFrac = lod - floor(lod);
 
         switch (filter) {
-        case TINYGLTF_TEXTURE_FILTER_NEAREST:
-            return NearestSample(image->mm[0], x, y);
+            case TINYGLTF_TEXTURE_FILTER_NEAREST:
+                return NearestSample(image->mm[0], x, y);
 
-        case TINYGLTF_TEXTURE_FILTER_LINEAR:
-            return LinearSample(image->mm[0], x, y);
+            case TINYGLTF_TEXTURE_FILTER_LINEAR:
+                return LinearSample(image->mm[0], x, y);
 
-        case TINYGLTF_TEXTURE_FILTER_NEAREST_MIPMAP_NEAREST:
-            return NearestSample(image->mm[level0], x, y);
+            case TINYGLTF_TEXTURE_FILTER_NEAREST_MIPMAP_NEAREST:
+                return NearestSample(image->mm[level0], x, y);
 
-        case TINYGLTF_TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST:
-            return LinearSample(image->mm[level0], x, y);
+            case TINYGLTF_TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST:
+                return LinearSample(image->mm[level0], x, y);
 
-        case TINYGLTF_TEXTURE_FILTER_NEAREST_MIPMAP_LINEAR: {
-            vec4 c0 = NearestSample(image->mm[level0], x, y);
-            vec4 c1 = NearestSample(image->mm[level1], x, y);
-            return mix(c0, c1, lodFrac);
-        }
-        case TINYGLTF_TEXTURE_FILTER_LINEAR_MIPMAP_LINEAR: {
-            vec4 c0 = LinearSample(image->mm[level0], x, y);
-            vec4 c1 = LinearSample(image->mm[level1], x, y);
-            return mix(c0, c1, lodFrac);
-        }
-        default:
-            return NearestSample(image->mm[0], x, y);
+            case TINYGLTF_TEXTURE_FILTER_NEAREST_MIPMAP_LINEAR: {
+                vec4 c0 = NearestSample(image->mm[level0], x, y);
+                vec4 c1 = NearestSample(image->mm[level1], x, y);
+                return mix(c0, c1, lodFrac);
+            }
+            case TINYGLTF_TEXTURE_FILTER_LINEAR_MIPMAP_LINEAR: {
+                vec4 c0 = LinearSample(image->mm[level0], x, y);
+                vec4 c1 = LinearSample(image->mm[level1], x, y);
+                return mix(c0, c1, lodFrac);
+            }
+            default:
+                return NearestSample(image->mm[0], x, y);
         }
     }
 }
