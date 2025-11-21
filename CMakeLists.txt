@@ -40,6 +40,7 @@ file(GLOB_RECURSE HEADS
 add_executable(${PROJECT_NAME}
     ${SRCS}
     ${HEADS}
+    ${IMGUI_SRC}
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -47,6 +48,7 @@ target_link_libraries(${PROJECT_NAME}
     tinygltf
     glm
     glfw
+    imgui
     OpenGL::GL
 )
 

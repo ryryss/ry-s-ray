@@ -78,7 +78,7 @@ void Task::Parallel2D(uint16_t sizex, uint16_t sizey, uint16_t blockSize,
                 for (uint16_t y = yStart; y < yEnd; y++) {
                     for (uint16_t x = 0; x < sizex; x++) {
 #ifdef DEBUG
-                        // if (x >= 300 && x <= 500 && y >= 300 && y <= 500)
+                        if (x >= 300 && x <= 500 && y >= 300 && y <= 500)
 #endif // DEBUG
                             work(x, y);
                     }

@@ -41,6 +41,7 @@ constexpr float floatMax = std::numeric_limits<float>::infinity();
 #include <glm/gtc/random.hpp>
 
 #include <tinygltf/tiny_gltf.h>
+
 namespace ry {
 using vec3 = glm::vec3; // can ez change mat lib
 using vec2 = glm::vec2;

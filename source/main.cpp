@@ -13,9 +13,10 @@ int main(int argc, char* argv[]) {
     } else {
         input = argv[1];
     }
+    auto& d = Display::GetInstance();
+
     Scene scene;
     scene.AddModel(input);
-    auto& d = Display::GetInstance();
 
     int keepRender = 10;
     PathRenderer renderer;

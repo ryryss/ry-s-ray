@@ -7,6 +7,31 @@
 
 set(DEPS_DIR "${PROJECT_SOURCE_DIR}/_deps")
 # =====================
+# imgui
+# =====================
+set(IMGUI_DIR "${DEPS_DIR}/imgui")
+if(NOT EXISTS "${IMGUI_DIR}/.git")
+    message(STATUS "Cloning imgui...")
+    execute_process(
+        COMMAND git clone --depth 1 https://github.com/ocornut/imgui.git -b master ${IMGUI_DIR}
+        RESULT_VARIABLE res
+    )
+    if(NOT res EQUAL 0)
+        message(FATAL_ERROR "Failed to clone imgui")
+    endif()
+endif()
+message(STATUS "imgui at ${IMGUI_DIR}")
+add_library(imgui INTERFACE)
+target_include_directories(imgui INTERFACE ${IMGUI_DIR})
+set(IMGUI_SRC
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp)
+
+# =====================
 # tinygltf
 # =====================
 set(TINYGLTF_DIR "${DEPS_DIR}/tinygltf")
