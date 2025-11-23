@@ -19,16 +19,26 @@ public:
         static Display instance(title);
         return instance;
     }
-    std::vector<vec4>& GetPixels() {
-        return pixels;
+
+    // event system not needed for now; use this simple callback to handle window resize.
+    void SetResizeCallback(std::function<void(int, int)> onResizeCallback) {
+        onResize = onResizeCallback;
     }
 
-    void UpdateFrame() {
+    void UpdateFrame(const std::vector<vec4>& pixels) {
         ResizeTexture(width, height);
 
         glBindTexture(GL_TEXTURE_2D, texture);
         // glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, pixels.data());
+        if (pixels.size() == 0) {
+            return;
+        } else if (pixels.size() < width * height) {
+            int uploadWidth = std::min(width, uint16_t(pixels.size()));
+            int uploadHeight = pixels.size() / width;
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, uploadHeight, GL_RGBA, GL_FLOAT, pixels.data());
+        } else {
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, pixels.data());
+        }
         // set x y start from the bottom left 
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -98,7 +108,9 @@ private:
             auto* self = static_cast<Display*>(glfwGetWindowUserPointer(win));
             self->width = w;
             self->height = h;
-            self->pixels.resize(w * h);
+            if (self->onResize) {
+                self->onResize(w, h);
+            }
         });
 
         glGenTextures(1, &texture);
@@ -124,10 +136,8 @@ private:
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_FLOAT, nullptr);
-            pixels.resize(w * h);
         }
     }
-    std::vector<vec4> pixels;
     GLFWwindow* window;
     GLuint texture;
     uint16_t width;
@@ -135,5 +145,7 @@ private:
 
     uint16_t old_w;
     uint16_t old_h;
+
+    std::function<void(int, int)> onResize;
 };
 }

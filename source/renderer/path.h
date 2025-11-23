@@ -1,12 +1,13 @@
 #pragma once
 #include "denoiser.h"
-#include "scene.h"
+#include "renderer.hpp"
 namespace ry{
-class PathRenderer {
+class PathRenderer : public Renderer {
 public:
     PathRenderer();
-    void Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* out);
+    void Render(Scene* s) override;
 private:
+    void UpdateSize();
     void UpdateGBuffer(const Interaction& isect, PixelInfo* pInf);
     void Denoising();
     Ray RayGeneration(uint32_t x, uint32_t y);
@@ -27,8 +28,5 @@ private:
     std::vector<PixelInfo> gBuffer;
 
     const Camera* cam;
-
-    uint16_t scrw, scrh;
-    Scene* scene;
 };
 }

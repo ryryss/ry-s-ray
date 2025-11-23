@@ -20,15 +20,21 @@ int main(int argc, char* argv[]) {
 
     int keepRender = 10;
     PathRenderer renderer;
+    // for resize window
+    d.SetResizeCallback([&](int w, int h) {
+        renderer.ResizeBuffer(w, h);
+    });
+    // must set a size before start render
+    renderer.ResizeBuffer(d.getWindowWidth(), d.getWindowHeight());
     thread t([&](){
         while (keepRender--) {
-            renderer.Render(&scene, d.getWindowWidth(), d.getWindowHeight(), d.GetPixels().data());
+            renderer.Render(&scene);
         }
     });
     t.detach();
 
     while (1) {
-        d.UpdateFrame(); // present to display
+        d.UpdateFrame(renderer.Present()); // present to display
         Sleep(5);
     }
     keepRender = false;

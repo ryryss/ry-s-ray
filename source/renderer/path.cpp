@@ -17,31 +17,14 @@ PathRenderer::PathRenderer()
     // denoisers.push_back(make_unique<AtrousDenoiser>(ivec2(2)));
 }
 
-void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* out)
+void PathRenderer::Render(Scene* s)
 {
-    cam = &s->GetActiveCamera();
-
-    if (screenx <= 0 && screeny <= 0) {
-        // throw ("");
-    } else if (scrw == screenx && scrh == screeny) {
-
-    } else {
-        s->ProcessCamera(screenx, screeny);
-        scrw = screenx;
-        scrh = screeny;
-        tMax = cam->zfar;
-        tMin = cam->znear;
-        sppBuffer.clear();
-        sppBuffer.resize(scrw * scrh);
-
-        gBuffer.resize(scrw * scrh);
-        for (auto& d : denoisers) {
-            d->ReSize(scrw, scrh);
-        }
-    }
-    prevProjView = cam->projView;
-    output = out;
     scene = s;
+    cam = &s->GetActiveCamera();
+    UpdateSize();
+    prevProjView = cam->projView;
+    output = buffer.GetFreeBuffer().data();
+
     for (int i = 1; i <= maxTraces; i++) {
         cout << "start " << currentTraces << "-th rayray" << endl;
         currentTraces = i;
@@ -54,21 +37,23 @@ void PathRenderer::Render(Scene* s, uint16_t screenx, uint16_t screeny, vec4* ou
     cout << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - now << endl;
 
     sppBuffer.clear();
-    sppBuffer.resize(scrw * scrh);
+    sppBuffer.resize(width * height);
 
-    for (int y = 0; y < scrh; y++) {
-        for (int x = 0; x < scrw; x++) {
-            int idx = y * scrw + x;
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int idx = y * width + x;
             output[idx] = pow(output[idx], vec4(GammaSRGB));
         }
     }
     cout << "render over" << endl;
+
+    buffer.SwapBuffer();
 }
 
 void PathRenderer::Denoising()
 { 
     for (auto& d : denoisers) {
-        d->Denoise(scrw, scrh, gBuffer.data(), output);
+        d->Denoise(width, height, gBuffer.data(), output);
     }
 }
 
@@ -78,8 +63,8 @@ Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
     // Geometric Method
     // l = -xmag  r = xmag b = -ymag t = ymag
     // u = l + (r − l)(i + 0.5)/nx
-    /*float uu = -cam.xmag + 2 * cam.xmag * (x + 0.5) / scrw;
-    float vv = -cam.ymag + 2 * cam.ymag * (y + 0.5) / scrh;
+    /*float uu = -cam.xmag + 2 * cam.xmag * (x + 0.5) / width;
+    float vv = -cam.ymag + 2 * cam.ymag * (y + 0.5) / height;
     if (cam.type == "perspective") {
         o = cam.e;
         d = normalize(cam.znear * cam.w + cam.u * uu + cam.v * vv);
@@ -92,7 +77,7 @@ Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
     // display -> NDC -> clip(projection) -> camera(view) -> world
     Sampler s;
     vec2 ndc = (vec2(x, y) + s.Get2D());
-    ndc = 2.f * ndc / vec2(scrw, scrh) - 1.f;
+    ndc = 2.f * ndc / vec2(width, height) - 1.f;
     vec4 clip { ndc, -1, 1 };
     vec4 camSpace = cam->clipToCamera * clip;
     camSpace /= camSpace.w;
@@ -103,6 +88,34 @@ Ray PathRenderer::RayGeneration(uint32_t x, uint32_t y)
     return { o, d };
 }
 
+void ry::PathRenderer::UpdateSize()
+{
+    if (windowChange) {
+        if (newHeight <= 0 && newWidth <= 0) {
+            // throw ("");
+        }
+        else if (width == newWidth && height == newHeight) {
+
+        }
+        else {
+            width = newWidth;
+            height = newHeight;
+
+            buffer.ResizeBuffer(width, height);
+            scene->ProcessCamera(width, height);
+            tMax = cam->zfar;
+            tMin = cam->znear;
+            sppBuffer.clear();
+            sppBuffer.resize(width * height);
+
+            gBuffer.resize(width * height);
+            for (auto& d : denoisers) {
+                d->ReSize(width, height);
+            }
+        }
+    }
+}
+
 void PathRenderer::UpdateGBuffer(const Interaction& isect, PixelInfo* pInf)
 {
     auto WorldToNdc = [this](const vec3& worldPos, const mat4& viewProj) {
@@ -110,8 +123,8 @@ void PathRenderer::UpdateGBuffer(const Interaction& isect, PixelInfo* pInf)
         return clip /= clip.w;        
     };
     auto NdcToScreen = [&](const vec3& ndcPos) {
-        return vec2( (ndcPos.x * 0.5f + 0.5f) * scrw,
-                     (1.0f - (ndcPos.y * 0.5f + 0.5f)) * scrh );
+        return vec2( (ndcPos.x * 0.5f + 0.5f) * width,
+                     (1.0f - (ndcPos.y * 0.5f + 0.5f)) * height );
     };
 
     vec4 currClip = WorldToNdc(isect.p, cam->projView);
@@ -130,8 +143,8 @@ void PathRenderer::UpdateGBuffer(const Interaction& isect, PixelInfo* pInf)
 void PathRenderer::PathTracing()
 {
     auto& t = Task::GetInstance();
-    t.Parallel2D(scrw, scrh, 16, [this](uint16_t x, uint16_t y) {
-        auto idx = y * scrw + x;
+    t.Parallel2D(width, height, 16, [this](uint16_t x, uint16_t y) {
+        auto idx = y * width + x;
         auto& color = Li(RayGeneration(x, y), &gBuffer[idx]);
         sppBuffer[idx] += color;
         gBuffer[idx].color = sppBuffer[idx] / (float)currentTraces;
