@@ -2,6 +2,7 @@
 #include "interaction.hpp"
 #include "model.h"
 namespace ry {
+class GPUScene;
 class Scene {
 public:
     void AddModel(std::string file);
@@ -23,5 +24,7 @@ private:
     std::vector <Camera> cameras;
 
     uint8_t camera = 0;
+
+    friend class GPUScene;
 };
 }

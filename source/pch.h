@@ -17,6 +17,8 @@
 #include <atomic>
 #include <queue>
 
+#include <cuda_runtime.h>
+
 static float GammaLinear = 2.2f; // gamma to linear
 static float GammaSRGB = 1.f / GammaLinear;
 static float ShadowEpsilon = 1e-5;

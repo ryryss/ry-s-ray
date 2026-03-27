@@ -111,3 +111,19 @@ set_target_properties(glfw PROPERTIES
     IMPORTED_LOCATION "${GLFW_BUILD_DIR}/src/Release/glfw3dll.lib"
     INTERFACE_INCLUDE_DIRECTORIES "${GLFW_DIR}/include"
 )
+
+# =====================
+# cuda
+# =====================
+option(ENABLE_CUDA "Is enable cuda" OFF)
+find_package(CUDAToolkit)
+if(ENABLE_CUDA AND CUDAToolkit_FOUND)
+    enable_language(CUDA)
+    add_definitions(-DUSE_CUDA)
+    set(CUDA_LIB CUDA::cudart)
+    file(GLOB_RECURSE CU_SRCS ${CMAKE_SOURCE_DIR}/source/*.cu)
+else()
+    message(STATUS "CUDA not found or USE_CUDA is off, building CPU-only version")
+    set(CUDA_LIB "")
+    set(CU_SRCS "")
+endif()

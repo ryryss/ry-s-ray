@@ -6,6 +6,7 @@
 #include "texture.hpp"
 namespace ry {
 class Scene;
+class GPUScene;
 // tinygltf wrapper
 class Model {
 public:
@@ -67,5 +68,6 @@ private:
     std::unique_ptr<BVH> bvh;
     friend class BVH;
     friend class Scene;
+    friend class GPUScene;
 };
 }

@@ -2,6 +2,8 @@
 #include "interaction.hpp"
 #include "sampler.hpp"
 #include "task.h"
+#include "gpuscene.h"
+
 using namespace std;
 using namespace ry;
 using namespace glm;
@@ -25,7 +27,36 @@ void PathRenderer::Render(Scene* s)
     prevProjView = cam->projView;
     output = buffer.GetFreeBuffer().data();
 
-    for (int i = 1; i <= maxTraces; i++) {
+    std::vector<Ray> rays;
+    rays.resize(width * height);
+    auto& t = Task::GetInstance();
+    t.Parallel2D(width, height, 16, [this, &rays](uint16_t x, uint16_t y) {
+        auto idx = y * width + x;
+        rays[y * width + x] = RayGeneration(x, y);
+    });
+
+    auto now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    GPUScene gScene(height, width);
+    gScene.Upload(s, rays);
+    gScene.Render();
+
+
+    std::vector<float3> h_fb(height * width);
+    cudaMemcpy(
+        h_fb.data(),
+        gScene.d_fb,
+        height * width * sizeof(float3),
+        cudaMemcpyDeviceToHost
+    );
+    cout << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - now << endl;
+
+
+    t.Parallel2D(width, height, 16, [this, &h_fb](uint16_t x, uint16_t y) {
+        auto idx = y * width + x;
+        output[idx]  = glm::vec4(h_fb[idx].x, h_fb[idx].y, h_fb[idx].z, 1.0);
+    });
+
+    /*for (int i = 1; i <= maxTraces; i++) {
         cout << "start " << currentTraces << "-th rayray" << endl;
         currentTraces = i;
         auto now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
@@ -38,14 +69,14 @@ void PathRenderer::Render(Scene* s)
 
     sppBuffer.clear();
     sppBuffer.resize(width * height);
-
+    
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             int idx = y * width + x;
             output[idx] = pow(output[idx], vec4(GammaSRGB));
         }
     }
-    cout << "render over" << endl;
+    cout << "render over" << endl;*/
 
     buffer.SwapBuffer();
 }
@@ -154,7 +185,6 @@ void PathRenderer::PathTracing()
 
 Spectrum PathRenderer::Li(const Ray& r, PixelInfo* pInf)
 {
-    auto& cam = scene->GetActiveCamera();
     Spectrum Lo(0.);
     Spectrum beta(1.f);
     Interaction isect;

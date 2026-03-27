@@ -24,12 +24,12 @@ inline float Tan2Theta(const vec3& w) {
 
 inline float CosPhi(const vec3& w) {
     float sinTheta = SinTheta(w);
-    return (sinTheta == 0) ? 1 : std::clamp(w.x / sinTheta, -1.f, 1.f);
+    return 1;//(sinTheta == 0) ? 1 : std::clamp(w.x / sinTheta, -1.f, 1.f);
 }
 
 inline float SinPhi(const vec3& w) {
     float sinTheta = SinTheta(w);
-    return (sinTheta == 0) ? 0 : std::clamp(w.y / sinTheta, -1.f, 1.f);
+    return 1;// (sinTheta == 0) ? 0 : std::clamp(w.y / sinTheta, -1.f, 1.f);
 }
 
 inline float Cos2Phi(const vec3& w) { return CosPhi(w) * CosPhi(w); }
@@ -40,7 +40,7 @@ inline float CosDPhi(const vec3& wa, const vec3& wb) {
     float waxy = wa.x * wa.x + wa.y * wa.y;
     float wbxy = wb.x * wb.x + wb.y * wb.y;
     if (waxy == 0 || wbxy == 0) { return 1; }
-    return std::clamp((wa.x * wb.x + wa.y * wb.y) / std::sqrt(waxy * wbxy), -1.f, 1.f);
+    return 1;// std::clamp((wa.x * wb.x + wa.y * wb.y) / std::sqrt(waxy * wbxy), -1.f, 1.f);
 }
 
 inline vec3 SphericalDirection(float sinTheta, float cosTheta, float phi) {

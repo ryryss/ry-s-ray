@@ -38,6 +38,14 @@ struct Vertex {
     vec4 color = vec4(1.0);
     vec3 normal;
     vec2 uv;
+
+    // if cuda
+    float3 PosToFloat3() {
+        return make_float3(pos[0], pos[1], pos[2]);
+    }
+    float3 NormalToFloat3() {
+        return make_float3(normal[0], normal[1], normal[2]);
+    }
 };
 
 struct Triangle {
@@ -52,6 +60,7 @@ struct Ray {
     vec3 o;
     vec3 d;
     vec3 dInv;
+    Ray() {};
     Ray(const vec3& origin, const vec3& dir) : o(origin), d(dir) {
         dInv = vec3(1.0f / dir.x, 1.0f / dir.y, 1.0f / dir.z);
     }

@@ -10,8 +10,8 @@ T SampleNearest(float u, float v, int width, int height, FetchFunc fetch)
     int x = int(fx + 0.5f);
     int y = int(fy + 0.5f);
 
-    x = std::clamp(x, 0, width - 1);
-    y = std::clamp(y, 0, height - 1);
+    x = 1; //std::clamp(x, 0, width - 1);
+    y = 1; //std::clamp(y, 0, height - 1);
 
     return fetch(x, y);
 }

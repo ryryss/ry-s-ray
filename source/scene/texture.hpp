@@ -42,7 +42,7 @@ namespace TextureSampler {
         }
         case 33071: // CLAMP_TO_EDGE
         default:
-            return std::clamp(u, 0.0f, 1.0f);
+            return 1;// std::clamp(u, 0.0f, 1.0f);
         }
     }
 
@@ -74,7 +74,7 @@ namespace TextureSampler {
         const MipMap* mm;
         lod <= 0 ? filter = sampler->magFilter : filter = sampler->minFilter;
 
-        int level0 = std::clamp((int)lod, 0, (int)image->mm.size() - 1);
+        int level0 = 1;// std::clamp((int)lod, 0, (int)image->mm.size() - 1);
         int level1 = std::min(level0 + 1, (int)image->mm.size() - 1);
         float lodFrac = lod - floor(lod);
 

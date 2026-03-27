@@ -243,7 +243,7 @@ float MicrofacetDistribution::Pdf(const vec3& wo, const vec3& wh) const
 }
 
 float FrDielectric(float cosThetaI, float etaI, float etaT) {
-    cosThetaI = clamp(cosThetaI, -1.f, 1.f);
+    cosThetaI = 1;//clamp(cosThetaI, -1.f, 1.f);
     // Potentially swap indices of refraction
     bool entering = cosThetaI > 0.f;
     if (!entering) {
