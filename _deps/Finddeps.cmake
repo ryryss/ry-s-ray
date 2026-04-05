@@ -6,6 +6,7 @@
 #90% code of this file are from ChatGPT
 
 set(DEPS_DIR "${PROJECT_SOURCE_DIR}/_deps")
+set(DEPS "")
 # =====================
 # imgui
 # =====================
@@ -32,6 +33,7 @@ if(ENABLE_IMGUI)
         ${IMGUI_DIR}/imgui_tables.cpp
         ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
         ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp)
+    list(APPEND DEPS imgui)
 endif()
 
 # =====================
@@ -51,6 +53,7 @@ endif()
 message(STATUS "tinygltf at ${TINYGLTF_DIR}")
 add_library(tinygltf INTERFACE)
 target_include_directories(tinygltf INTERFACE ${TINYGLTF_DIR})
+list(APPEND DEPS tinygltf)
 
 # =====================
 # glm
@@ -69,6 +72,7 @@ endif()
 message(STATUS "glm at ${GLM_DIR}")
 add_library(glm INTERFACE)
 target_include_directories(glm INTERFACE ${GLM_DIR})
+list(APPEND DEPS glm)
 
 # =====================
 # glfw
@@ -86,6 +90,7 @@ if(NOT EXISTS "${GLFW_DIR}/.git")
     endif()
 endif()
 message(STATUS "glfw at ${GLFW_DIR}")
+list(APPEND DEPS glfw)
 
 # build glfw
 if(NOT EXISTS "${GLFW_BUILD_DIR}/CMakeCache.txt")
@@ -112,12 +117,18 @@ endif()
 add_library(glfw STATIC IMPORTED)
 set_target_properties(glfw PROPERTIES
     IMPORTED_LOCATION "${GLFW_BUILD_DIR}/src/Release/glfw3dll.lib"
-    INTERFACE_INCLUDE_DIRECTORIES "${GLFW_DIR}/include"
-)
+    INTERFACE_INCLUDE_DIRECTORIES "${GLFW_DIR}/include")
 
 # =====================
 # cuda
 # =====================
+execute_process(
+    COMMAND nvidia-smi --query-gpu=compute_cap --format=csv,noheader
+    OUTPUT_VARIABLE CUDA_CAP
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+string(REPLACE "." "" CUDA_ARCH ${CUDA_CAP})
+set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH})
+
 option(ENABLE_CUDA "Is enable cuda" ON)
 find_package(CUDAToolkit)
 if(ENABLE_CUDA AND CUDAToolkit_FOUND)

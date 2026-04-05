@@ -8,7 +8,7 @@ unique_ptr<IRenderBackend> Renderer::CreateBackend()
 {
 #ifdef USE_CUDA
     if (useGpu) {
-        return backend = std::make_unique<GpuBackend>();
+        return std::make_unique<GpuBackend>();
     }
 #endif // USE_CUDA
     return std::make_unique<CpuBackend>();

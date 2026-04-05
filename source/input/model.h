@@ -7,11 +7,11 @@ public:
     RGBSpectrum(const vec3& v) : c(v) {}
 
     RGBSpectrum& operator+=(const RGBSpectrum& c2) {
-        c += c2.c;
+        c = c + c2.c;
         return *this;
     }
     RGBSpectrum& operator+=(const vec3& c2) {
-        c += c2;
+        c = c + c2;
         return *this;
     }
     RGBSpectrum operator*(const float c2) const {
@@ -21,7 +21,7 @@ public:
         return RGBSpectrum(c * c2.c);
     }
     RGBSpectrum& operator*=(const RGBSpectrum& c2) {
-        c *= c2.c;
+        c = c * c2.c;
         return *this;
     }
     RGBSpectrum operator+(const RGBSpectrum& c2) const {
@@ -41,7 +41,7 @@ public:
         return true;
     }
     inline float Luminance() const {
-        return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+        return 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z;
     }
     vec3 c;
 };
@@ -95,6 +95,7 @@ public:
 	Model() {};
     const std::vector<Triangle>& GetTriangles() const { return tris; }
     const std::vector<Camera>& GetCameras() const { return cams; }
+    void AddCamera(const Camera& c) { cams.push_back(c); }
 private:
     std::vector<Triangle> tris;
     std::vector<Camera> cams;

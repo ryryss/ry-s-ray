@@ -3,7 +3,7 @@
 namespace ry {
 class Renderer {
 public:
-    Renderer() { CreateBackend(); }
+    Renderer() { backend = CreateBackend(); }
     void Render(const Scene& scene, RenderTarget& target);
 
 private:

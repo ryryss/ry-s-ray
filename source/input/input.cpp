@@ -97,7 +97,7 @@ Model GLTFLoader::BuildModel()
                cam.v = cross(cam.u, cam.w);
                in this program, will cause errors
             */
-            m.GetCameras().push_back(cam);
+            m.AddCamera(cam);
         }
     }
     
@@ -158,21 +158,19 @@ mat4 GLTFLoader::GetNodeMat(int num)
     }
     const auto& n = raw.nodes[num];
     if (n.matrix.size() == 16) {
-        t = glm::make_mat4(n.matrix.data());
+        t = mat4(n.matrix.data());
         return t;
-    }
-    else if (n.translation.empty() && n.rotation.empty() && n.scale.empty()) {
+    } else if (n.translation.empty() && n.rotation.empty() && n.scale.empty()) {
         return t;
-    }
-    else {
-        mat4 T = n.translation.empty() ? glm::mat4(1.0f) :
-            translate(glm::mat4(1.0f), { n.translation[0], n.translation[1], n.translation[2] });
+    } else {
+        mat4 T = n.translation.empty() ? mat4(1.0f) :
+            translate(mat4(1.0f), vec3(n.translation[0], n.translation[1], n.translation[2]));
 
-        mat4 R = n.rotation.empty() ? glm::mat4(1.0f) :
-            glm::toMat4(glm::quat((n.rotation[3]), (n.rotation[0]), (n.rotation[1]), (n.rotation[2])));
+        mat4 R = n.rotation.empty() ? mat4(1.0f) :
+            toMat4(quat((n.rotation[3]), (n.rotation[0]), (n.rotation[1]), (n.rotation[2])));
 
-        mat4 S = n.scale.empty() ? glm::mat4(1.0f) :
-            scale(glm::mat4(1.0f), { n.scale[0], n.scale[1], n.scale[2] });
+        mat4 S = n.scale.empty() ? mat4(1.0f) :
+            scale(mat4(1.0f), vec3(n.scale[0], n.scale[1], n.scale[2]));
 
         t = T * R * S;
     }
@@ -375,17 +373,17 @@ void GLTFLoader::ParseTexTureCoord(const gltf::Primitive& p, std::vector<VertexI
             const auto& image = raw.images[0]; // simple get first texture
             int w = image.width;
             const unsigned char* pixels = image.image.data();
-            float u = vert[i].uv[0];
-            float v = vert[i].uv[1];
+            float u = vert[i].uv.x;
+            float v = vert[i].uv.y;
             int x = int(u * (w - 1));
             int y = int(v * (image.height - 1)); // no need reverse
             // int((1.0f - v) * (image.height - 1));
             int idx = (y * w + x) * image.component;
 
-            vert[i].color.r = pixels[idx + 0] / 255.0f;
-            vert[i].color.g = pixels[idx + 1] / 255.0f;
-            vert[i].color.b = pixels[idx + 2] / 255.0f;
-            vert[i].color.a = (image.component == 4) ? pixels[idx + 3] / 255.0f : 1.0f;
+            vert[i].color.x = pixels[idx + 0] / 255.0f;
+            vert[i].color.y = pixels[idx + 1] / 255.0f;
+            vert[i].color.z = pixels[idx + 2] / 255.0f;
+            vert[i].color.w = (image.component == 4) ? pixels[idx + 3] / 255.0f : 1.0f;
         }
     }
 }
@@ -492,7 +490,7 @@ void GLTFLoader::ParsePosition(const gltf::Primitive& p, std::vector<VertexInfo>
     size_t stride = acc.ByteStride(v);
     vert.resize(acc.count);
     for (size_t i = 0; i < acc.count; i++) {
-        glm::vec3 pos(0.0f);
+        vec3 pos(0.0f);
         if (acc.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
             const float* ptr = reinterpret_cast<const float*>(pData + i * stride);
             pos.x = ptr[0];

@@ -3,6 +3,18 @@
 using namespace ry;
 using namespace std;
 
+
+__global__ void RenderKernel(const DeviceScene scene, float4* out)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    uint32_t pixelCount = scene.params.width * scene.params.height;
+    if (idx >= pixelCount) {
+        return;
+    };
+
+
+}
+
 void Launch(const DeviceScene scene,float4* out)
 {
     uint32_t pixelCount = scene.params.width * scene.params.height;
@@ -12,15 +24,4 @@ void Launch(const DeviceScene scene,float4* out)
     RenderKernel << <gridSize, blockSize >> > (scene, out);
 
     cudaDeviceSynchronize();
-}
-
-__global__ void RenderKernel(const DeviceScene scene, float4* out)
-{
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    uint32_t pixelCount = scene.params.width * scene.params.height;
-    if (idx >= pixelCount) { 
-        return;
-    };
-
-    
 }
