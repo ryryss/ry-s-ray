@@ -1,41 +1,185 @@
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "model.h"
-#include "bvh.h"
+#include "input.h"
+#include "math.hpp"
 using namespace ry;
 using namespace std;
-using namespace glm;
+namespace gltf = tinygltf;
 
-bool Model::LoadFromFile(const string& file)
+inline string GetExtension(const string& filename) {
+    return filesystem::path(filename).extension().string();
+}
+
+unique_ptr<IModelLoader> Input::CreateLoader(const string& filename)
+{
+    auto ext = GetExtension(filename);
+    if (ext == ".gltf" || ext == ".glb") {
+        return std::make_unique<GLTFLoader>();
+    }
+
+    // if (.obj) return OBJLoader
+    // if (.fbx) return FBXLoader
+
+    throw std::runtime_error("Unsupported format");
+}
+
+Model GLTFLoader::Load(const string& filename)
 {
     gltf::TinyGLTF loader;
     string err;
     string warn;
 
-    bool ret = loader.LoadBinaryFromFile(&raw, &err, &warn, file);
+    bool ret = loader.LoadBinaryFromFile(&raw, &err, &warn, filename);
     if (!ret) {
         cout << "Warn: " << warn << endl;
         cerr << "Err: " << err << endl;
-        cerr << "Failed to load GLB: " << file << endl;
+        cerr << "Failed to load GLB: " << filename << endl;
         throw ("File Error");
-        return false;
     }
+
+
     ParseNode();
     for (int i = 0; i < nodes.size(); i++) {
         const auto& n = raw.nodes[i];
         const auto& node = nodes[i];
         ParseMesh(i);
         ParseCamera(i);
-        ParseLight(i);
+        // ParseLight(i);
     }
     ParseImage();
-    // temp solution
-    bvh = make_unique<BVH>(this, triangles.size());
-    return true;
+
+    return BuildModel();
 }
 
-void Model::ParseNode()
+Model GLTFLoader::BuildModel()
+{
+    assert(vertices.size() % 3 == 0 && vertIdx.size() % 3 == 0 && vertIdx.size() == vertices.size());
+
+    Model m;
+    // vert
+    auto tris = m.GetTriangles();
+    for (int i = 0; i < vertices.size() / 3; i++) {
+        const auto& v0 = vertices[vertIdx[i]];
+        const auto& v1 = vertices[vertIdx[i + 1]];
+        const auto& v2 = vertices[vertIdx[i + 2]];
+        tris.push_back(BuildTriangle(v0, v1, v2));
+    }
+
+    // camera
+    for (const auto& camNode : cams) {
+        if (camNode.c != nullptr) {
+            const auto c = camNode.c;
+            Camera cam;
+            if (c->type == "perspective") {
+                cam.znear = c->perspective.znear;
+                cam.zfar = c->perspective.zfar;
+                cam.yfov = c->perspective.yfov;
+                cam.aspectRatio = c->perspective.aspectRatio;
+            } else if (c->type == "orthographic") {
+                cam.znear = c->orthographic.znear;
+                cam.zfar = c->orthographic.zfar;
+                cam.xmag = c->orthographic.xmag;
+                cam.ymag = c->orthographic.ymag;
+            } else {
+                throw("cam info error");
+            }
+
+            // use camera world coordinate to direct get base vector
+            cam.e = vec3(camNode.m[3]);
+            cam.w = -normalize(vec3(camNode.m[2]));
+            cam.v = normalize(camNode.m[1]);
+            cam.u = normalize(camNode.m[0]);
+            /*
+               some book like¡¶Ray Tracing in One Weekend¡·will use :
+               cam.w = normalize(cam.e - vec3(0, 0, -1));
+               cam.u = normalize(cross(cam.w, vec3(0, 1, 0)));
+               cam.v = cross(cam.u, cam.w);
+               in this program, will cause errors
+            */
+            m.GetCameras().push_back(cam);
+        }
+    }
+    
+    // light
+    // now just support area light
+    for (const auto& idxs : emissiveVertIdx) {
+        Light light;
+        for (int i = 0; i < idxs.size() / 3; i++) {
+            const auto& v0 = vertices[idxs[i]];
+            const auto& v1 = vertices[idxs[i + 1]];
+            const auto& v2 = vertices[idxs[i + 2]];
+            light.tIdxs.push_back(tris.size());
+            tris.push_back(BuildTriangle(v0, v1, v2));
+        }
+        auto& m = raw.materials[vertices[idxs[0]].material]; // all vertex materials from idx are the same
+        auto& pbr = m.pbrMetallicRoughness;
+        float emissiveStrength = 0.0;
+        if (auto it = m.extensions.find("KHR_materials_emissive_strength");
+            it != m.extensions.end()) {
+            const gltf::Value& val = it->second.Get("emissiveStrength");
+            emissiveStrength = static_cast<float>(val.Get<double>());
+        }
+        auto baseColorFactor = vec4(pbr.baseColorFactor[0], pbr.baseColorFactor[1],
+            pbr.baseColorFactor[2], pbr.baseColorFactor[3]);
+        light.emissiveStrength = emissiveStrength;
+        light.I = vec3(baseColorFactor);
+
+        // set arae
+        for (const auto& idx : light.tIdxs) {
+            auto& tri = tris[idx];
+            vec3 e1 = tri.v1 - tri.v0;
+            vec3 e2 = tri.v2 - tri.v0;
+            light.area += 0.5f * length(cross(e1, e2));
+        }
+    }
+
+    //metrial
+    
+    // image / texture
+    return m;
+}
+
+Triangle ry::GLTFLoader::BuildTriangle(const VertexInfo& v0, const VertexInfo& v1, const VertexInfo& v2)
+{
+    return {
+        v0.pos, v1.pos, v2.pos,
+        v0.normal, v1.normal, v2.normal,
+        v0.uv, v1.uv, v2.uv,
+        v0.material // material + / 3 ?
+    };
+}
+
+mat4 GLTFLoader::GetNodeMat(int num)
+{
+    mat4 t = mat4(1.0f);
+    if (num < 0) {
+        return t;
+    }
+    const auto& n = raw.nodes[num];
+    if (n.matrix.size() == 16) {
+        t = glm::make_mat4(n.matrix.data());
+        return t;
+    }
+    else if (n.translation.empty() && n.rotation.empty() && n.scale.empty()) {
+        return t;
+    }
+    else {
+        mat4 T = n.translation.empty() ? glm::mat4(1.0f) :
+            translate(glm::mat4(1.0f), { n.translation[0], n.translation[1], n.translation[2] });
+
+        mat4 R = n.rotation.empty() ? glm::mat4(1.0f) :
+            glm::toMat4(glm::quat((n.rotation[3]), (n.rotation[0]), (n.rotation[1]), (n.rotation[2])));
+
+        mat4 S = n.scale.empty() ? glm::mat4(1.0f) :
+            scale(glm::mat4(1.0f), { n.scale[0], n.scale[1], n.scale[2] });
+
+        t = T * R * S;
+    }
+    return t;
+}
+
+void GLTFLoader::ParseNode()
 {
     if (raw.scenes.size() > 1) {
         throw ("now just sup 1 cam 1 scene");
@@ -55,7 +199,11 @@ void Model::ParseNode()
     }
 }
 
-void Model::ParseMesh(int num)
+void GLTFLoader::ParseImage()
+{
+}
+
+void GLTFLoader::ParseMesh(int num)
 {
     const auto& n = raw.nodes[num];
     if (n.mesh < 0) {
@@ -70,7 +218,7 @@ void Model::ParseMesh(int num)
     }
 }
 
-void Model::ParseChildNode(int num)
+void GLTFLoader::ParseChildNode(int num)
 {
     const auto& n = raw.nodes[num];
     auto& p = nodes[num]; // parent
@@ -87,50 +235,21 @@ void Model::ParseChildNode(int num)
     }
 }
 
-void Model::ParseCamera(int num)
+void GLTFLoader::ParseCamera(int num)
 {
     const auto& n = raw.nodes[num];
     if (n.camera < 0) {
         return;
     }
     const auto& node = nodes[num];
-    auto cam = Camera(node);
-
-    const auto& c = raw.cameras[n.camera];
-    cam.type = c.type;
-    if (cam.type == "perspective") {
-        cam.znear = c.perspective.znear;
-        cam.zfar = c.perspective.zfar;
-        cam.yfov = c.perspective.yfov;
-        cam.aspectRatio = c.perspective.aspectRatio;
-    } else if (c.type == "orthographic") {
-        cam.znear = c.orthographic.znear;
-        cam.zfar = c.orthographic.zfar;
-        cam.xmag = c.orthographic.xmag;
-        cam.ymag = c.orthographic.ymag;
-    } else {
-        throw("cam info error");
-    }
-
-    // use camera world coordinate to direct get base vector
-    cam.e = vec3(cam.m[3]);
-    cam.w = -normalize(vec3(cam.m[2]));
-    cam.v = normalize(cam.m[1]);
-    cam.u = normalize(cam.m[0]);
-    /*
-       some book like¡¶Ray Tracing in One Weekend¡·will use :
-       cam.w = normalize(cam.e - vec3(0, 0, -1));
-       cam.u = normalize(cross(cam.w, vec3(0, 1, 0)));
-       cam.v = cross(cam.u, cam.w);
-       in this program, will cause errors
-    */
-    cam.i = cameras.size();
-    cameras.push_back(cam);
+    auto cam = CameraNode(node);
+    cam.c = &raw.cameras[n.camera];
+    cams.push_back(cam);
 }
 
-void Model::ParseLight(int num)
+void GLTFLoader::ParseLight(int num)
 {
-    const auto& n = raw.nodes[num];
+    /*const auto& n = raw.nodes[num];
     if (n.light < 0) {
         return;
     }
@@ -143,60 +262,19 @@ void Model::ParseLight(int num)
     // lgt.color = { l.color[0], l.color[1], l.color[2] };
     if (light.type == "") {} // TODO : need process point light
     light.i = lights.size();
-    lights.push_back(light);
+    lights.push_back(light);*/
 }
 
-void Model::ParseMaterial(int num)
+void GLTFLoader::ParseMaterial(int num)
 {
-    if (num < 0) {
-        return;
-    }
-    Material mat;
-    mat.SetRawPtr(this, &raw.materials[num]);
-    // In most cases, the rendering is based on triangles
-    // so there is no need to record the material index for each vertex.
-    materials.push_back(mat);
+
 }
 
-void Model::ParseEmissiveMaterial(int num, const vector<uint64_t>& ids)
+void GLTFLoader::ParseEmissiveMaterial(int num, const std::vector<uint64_t>& ids)
 {
-    if (num < 0) {
-        return;
-    }
-    // TODO emissive texture
-    // get emissive info
-    auto& m = raw.materials[num];
-    auto& pbr = m.pbrMetallicRoughness;
-    float emissiveStrength = 0.0;
-    if (auto it = m.extensions.find("KHR_materials_emissive_strength");
-        it != m.extensions.end()) {
-        const gltf::Value& val = it->second.Get("emissiveStrength");
-        emissiveStrength = static_cast<float>(val.Get<double>());
-    }
-    auto baseColorFactor = vec4(pbr.baseColorFactor[0], pbr.baseColorFactor[1],
-        pbr.baseColorFactor[2], pbr.baseColorFactor[3]);
-    // set material info
-    auto& material = materials.back();
-    material.SetEmissiveInfo(baseColorFactor, emissiveStrength);
-    // set emissive face as a area light
-    Light light(this);
-    light.emissiveStrength = emissiveStrength;
-    light.I = vec3(baseColorFactor);
-    light.name = "AreaLight";
-    light.triangles = ids;
-    for (auto i : ids) {
-        auto& tri = triangles[i];
-        auto& a = vertices[tri.vertIdx[0]].pos;
-        auto& b = vertices[tri.vertIdx[1]].pos;
-        auto& c = vertices[tri.vertIdx[2]].pos;
-        vec3 e1 = b - a;
-        vec3 e2 = c - a;
-        light.area += 0.5f * length(cross(e1, e2));
-    }
-    lights.push_back(light);
 }
 
-vector<uint32_t> Model::ParseVertIdx(const gltf::Primitive& p)
+vector<uint32_t> GLTFLoader::ParseVertIdx(const gltf::Primitive& p)
 {
     vector<uint32_t> res;
     if (p.indices < 0) {
@@ -209,131 +287,60 @@ vector<uint32_t> Model::ParseVertIdx(const gltf::Primitive& p)
     res.resize(acc.count);
 
     switch (acc.componentType) {
-    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: {
-        const uint16_t* buf = reinterpret_cast<const uint16_t*>(data);
-        for (size_t i = 0; i < acc.count; ++i)
-            res[i] = static_cast<unsigned int>(buf[i]);
-        break;
-    }
-    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: {
-        const uint32_t* buf = reinterpret_cast<const uint32_t*>(data);
-        for (size_t i = 0; i < acc.count; ++i)
-            res[i] = buf[i];
-        break;
-    }
-    default:
-        cerr << "Unsupported index component type." << endl;
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: {
+            const uint16_t* buf = reinterpret_cast<const uint16_t*>(data);
+            for (size_t i = 0; i < acc.count; ++i)
+                res[i] = static_cast<unsigned int>(buf[i]);
+            break;
+        }
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: {
+            const uint32_t* buf = reinterpret_cast<const uint32_t*>(data);
+            for (size_t i = 0; i < acc.count; ++i)
+                res[i] = buf[i];
+            break;
+        }
+        default:
+            cerr << "Unsupported index component type." << endl;
     }
     return res;
 }
 
-void Model::ParsePrimitive(const gltf::Primitive& p, const mat4& m)
+void GLTFLoader::ParsePrimitive(const gltf::Primitive& p, const mat4& m)
 {
-    const auto idx = move(ParseVertIdx(p));
-    vector<Vertex> vert;
+    auto idx = ParseVertIdx(p);
+    vector<VertexInfo> vert;
     ParsePosition(p, vert);
     ParseTexTureCoord(p, vert);
     ParseNormal(p, vert);
-    ParseVertColor(p, vert);
+    // ParseVertColor(p, vert);
     ParseMaterial(p.material);
 
-    int vSize = vertices.size();
     // apply trans
-    mat3 n_m = transpose(inverse(mat3(m)));
+    mat3 nm = transpose(inverse(mat3(m)));
     for (auto i = 0; i < vert.size(); i++) {
         vert[i].pos = m * vec4(vert[i].pos, 1.0f);
-        vert[i].normal = normalize(n_m * vert[i].normal);
+        vert[i].normal = normalize(nm * vert[i].normal);
 #ifdef DEBUG
         // cout << "add vert pos = ";
         // PrintVec(vert[i].pos);
 #endif
     }
+    int vertCnt = vertices.size();
     vertices.insert(vertices.end(), vert.begin(), vert.end());
-    
-    bool emissive = IsEmissive(p.material);
-    vector<uint64_t> emissiveTris;
-    // collect tris
-    for (int i = 0; i < idx.size(); i += 3) {
-        triangles.push_back(Triangle());
-        auto& tri = triangles.back();
-        tri.vertIdx[0] = idx[i + 0] + vSize;
-        tri.vertIdx[1] = idx[i + 1] + vSize;
-        tri.vertIdx[2] = idx[i + 2] + vSize;
-        tri.material = p.material;
-        auto& a = vertices[tri.vertIdx[0]].pos;
-        auto& b = vertices[tri.vertIdx[1]].pos;
-        auto& c = vertices[tri.vertIdx[2]].pos;
-        tri.c = (a + b + c) / 3.0f;
-        // tri.normal = normalize(cross(b - a, c - a));
 
-        if (emissive) {
-            emissiveTris.push_back(triangles.size() - 1);
-        }
+    std::transform(idx.begin(), idx.end(), idx.begin(), [vertCnt](int x) { return x + vertCnt; });
+    // for area light
+    if (IsEmissive(p.material)) {
+        emissiveVertIdx.push_back(idx);
+    } else {
+        vertIdx.insert(vertIdx.end(), idx.begin(), idx.end());
     }
+
     cout << "parse result : vertices size = " << vert.size()
-         << " triangles size = " << idx.size() / 3 << endl;
-
-    if (emissive) {
-        ParseEmissiveMaterial(p.material, emissiveTris);
-    }
+        << " triangles size = " << idx.size() / 3 << endl;
 }
 
-void Model::ParseImage()
-{
-    for (auto i : raw.images) {
-        images.push_back(Image());
-        auto& image = images.back();
-        int levels = 1 + std::log2(std::max(i.width, i.height));
-        image.mm.reserve(levels);
-        image.mm.push_back(MipMap());
-
-        auto& mipmap = image.mm.back();
-        mipmap.width = i.width;
-        mipmap.height = i.height;
-        mipmap.pixels.resize(i.width * i.height * 4);
-        for (int j = 0; j < mipmap.pixels.size(); j++) {
-            mipmap.pixels[j] = (float)i.image[j] / 255;
-        }
-
-        auto& mipmaps = image.mm;
-        for (int j = 1; j < levels; j++) {
-            const MipMap& prev = mipmaps[j - 1];
-            int w = std::max(1, prev.width / 2);
-            int h = std::max(1, prev.height / 2);
-
-            mipmaps.push_back(MipMap());
-            auto& level = mipmaps.back();
-            level.width = w;
-            level.height = h;
-            level.pixels.resize(w * h * 4); // RGBA8
-
-            // downsample
-            for (int y = 0; y < h; y++) {
-                for (int x = 0; x < w; x++) {
-                    int r = 0, g = 0, b = 0, a = 0;
-                    for (int dy = 0; dy < 2; dy++) {
-                        for (int dx = 0; dx < 2; dx++) {
-                            int srcX = std::min(prev.width - 1, x * 2 + dx);
-                            int srcY = std::min(prev.height - 1, y * 2 + dy);
-                            int idx = (srcY * prev.width + srcX) * 4;
-                            r += prev.pixels[idx + 0];
-                            g += prev.pixels[idx + 1];
-                            b += prev.pixels[idx + 2];
-                            a += prev.pixels[idx + 3];
-                        }
-                    }
-                    int dstIdx = (y * w + x) * 4;
-                    level.pixels[dstIdx + 0] = r / 4;
-                    level.pixels[dstIdx + 1] = g / 4;
-                    level.pixels[dstIdx + 2] = b / 4;
-                    level.pixels[dstIdx + 3] = a / 4;
-                }
-            }
-        }
-    }
-}
-
-void Model::ParseTexTureCoord(const gltf::Primitive& p, vector<Vertex>& vert)
+void GLTFLoader::ParseTexTureCoord(const gltf::Primitive& p, std::vector<VertexInfo>& vert)
 {
     // https://github.khronos.org/glTF-Tutorials/gltfTutorial/gltfTutorial_013_SimpleTexture.html
     // TODO: mult texturescoord sup
@@ -383,7 +390,7 @@ void Model::ParseTexTureCoord(const gltf::Primitive& p, vector<Vertex>& vert)
     }
 }
 
-void Model::ParseNormal(const gltf::Primitive& p, vector<Vertex>& vert)
+void GLTFLoader::ParseNormal(const gltf::Primitive& p, std::vector<VertexInfo>& vert)
 {
     auto it = p.attributes.find("NORMAL");
     if (it == p.attributes.end()) {
@@ -417,7 +424,7 @@ void Model::ParseNormal(const gltf::Primitive& p, vector<Vertex>& vert)
     }
 }
 
-void Model::ParseVertColor(const gltf::Primitive& p, vector<Vertex>& vert)
+/*void GLTFLoader::ParseVertColor(const gltf::Primitive& p, std::vector<VertexInfo>& vert)
 {
     auto it = p.attributes.find("COLOR_0");
     if (it == p.attributes.end()) {
@@ -469,9 +476,9 @@ void Model::ParseVertColor(const gltf::Primitive& p, vector<Vertex>& vert)
         }
         vert[i].color *= c; // if have texture use "*" simple process vert color;
     }
-}
+}*/
 
-void Model::ParsePosition(const gltf::Primitive& p, vector<Vertex>& vert)
+void GLTFLoader::ParsePosition(const gltf::Primitive& p, std::vector<VertexInfo>& vert)
 {
     auto it = p.attributes.find("POSITION");
     if (it == p.attributes.end()) {
@@ -503,71 +510,6 @@ void Model::ParsePosition(const gltf::Primitive& p, vector<Vertex>& vert)
             pos.z = ptr[2] / 65535.0f;
         }
         vert[i].pos = pos;
+        vert[i].material = p.material;
     }
-}
-
-mat4 Model::GetNodeMat(int num)
-{
-    mat4 t = mat4(1.0f);
-    if (num < 0) {
-        return t;
-    }
-    const auto& n = raw.nodes[num];
-    if (n.matrix.size() == 16) {
-        t = make_mat4(n.matrix.data());
-        return t;
-    } else if (n.translation.empty() && n.rotation.empty() && n.scale.empty()) {
-        return t;
-    } else {
-        mat4 T = n.translation.empty() ? glm::mat4(1.0f) :
-            translate(glm::mat4(1.0f), { n.translation[0], n.translation[1], n.translation[2] });
-
-        mat4 R = n.rotation.empty() ? glm::mat4(1.0f) :
-            toMat4(quat((n.rotation[3]), (n.rotation[0]), (n.rotation[1]), (n.rotation[2])));
-
-        mat4 S = n.scale.empty() ? glm::mat4(1.0f) :
-            glm::scale(glm::mat4(1.0f), { n.scale[0], n.scale[1], n.scale[2] });
-
-        t = T * R * S;
-    }
-    return t;
-}
-
-bool Model::Intersect(const Ray& r, const vector<uint64_t>& idx, Interaction& isect) const
-{
-    bool hit = false;
-    float t, gu, gv;
-    // for (int i = 0; i < triangles.size(); i++) {
-    for (auto& i : idx) {
-        auto& tri = triangles[i];
-        auto& a = vertices[tri.vertIdx[0]].pos;
-        auto& b = vertices[tri.vertIdx[1]].pos;
-        auto& c = vertices[tri.vertIdx[2]].pos;
-        if (Moller_Trumbore(r.o, r.d, a, b, c, t, gu, gv) &&
-            t > isect.tMin && t < isect.tMax) {
-            isect.tMax = t;
-            isect.bary = { 1 - gu - gv, gu, gv };
-            isect.p = r.o + t * r.d;
-            isect.tri = &tri;
-            hit = true;
-        }
-    }
-    if (hit) {
-        auto& a = vertices[isect.tri->vertIdx[0]];
-        auto& b = vertices[isect.tri->vertIdx[1]];
-        auto& c = vertices[isect.tri->vertIdx[2]];
-        isect.normal = normalize(isect.bary[0] * a.normal
-            + isect.bary[1] * b.normal + isect.bary[2] * c.normal);
-
-        isect.mat = &materials[isect.tri->material];
-        isect.bsdf = isect.mat->CreateBSDF(&isect);
-    }
-    return hit;
-}
-
-bool Model::Intersect(const Ray& r, Interaction& isect) const
-{
-    vector<uint64_t> idx;
-    bvh->TraverseBVH(idx, r, bvh->root);
-    return Intersect(r, idx, isect);
 }

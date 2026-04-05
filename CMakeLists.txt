@@ -5,7 +5,7 @@ project("ry-s-ray" LANGUAGES CXX)
 
 option(CMAKE_DEBUG "custom macro just for cmake debug" OFF)
 
-if (CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "Please select another build directory")
 endif()
 
@@ -41,6 +41,7 @@ add_executable(${PROJECT_NAME}
     ${SRCS}
     ${HEADS}
     ${IMGUI_SRC}
+    ${CU_SRCS}
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -50,6 +51,7 @@ target_link_libraries(${PROJECT_NAME}
     glfw
     imgui
     OpenGL::GL
+    ${CUDA_LIB}
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS} ${HEADS})

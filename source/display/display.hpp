@@ -1,11 +1,13 @@
 #pragma once
-#include "pch.h"
+#include "public.h"
 
+#ifdef USE_IMGUI
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
-
+#endif // USE_IMGUI
 #include <GLFW/glfw3.h>
+
 namespace ry {
 class Display {
 public:
@@ -25,20 +27,19 @@ public:
         onResize = onResizeCallback;
     }
 
-    void UpdateFrame(const std::vector<vec4>& pixels) {
+    void Present(vec4* pixels) {
         ResizeTexture(width, height);
 
         glBindTexture(GL_TEXTURE_2D, texture);
         // glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-        if (pixels.size() == 0) {
+        /*if (pixels.size() == 0) {
             return;
         } else if (pixels.size() < width * height) {
             int uploadWidth = std::min(width, uint16_t(pixels.size()));
             int uploadHeight = pixels.size() / width;
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, uploadHeight, GL_RGBA, GL_FLOAT, pixels.data());
-        } else {
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, pixels.data());
-        }
+        } else {*/
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, pixels);
         // set x y start from the bottom left 
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -60,7 +61,9 @@ public:
     uint16_t getWindowWidth() const { return width; }
     uint16_t getWindowHeight() const { return height; }
 private:
+
     void DrawConTrolWindow() {
+#ifdef USE_IMGUI
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
@@ -76,6 +79,7 @@ private:
         ImGui::End();
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+#endif // USE_IMGUI
     }
 
     Display(const char* title) {
@@ -115,7 +119,7 @@ private:
 
         glGenTextures(1, &texture);
         ResizeTexture(width, height);
-
+#ifdef USE_IMGUI
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
@@ -126,6 +130,7 @@ private:
         io.FontGlobalScale = getWindowHeight() * 0.04f / 16.0f;
         // set main control window default size
         ImGui::SetNextWindowSize(ImVec2(width * 0.1f, height * 0.1f), ImGuiCond_Appearing);
+#endif
     }
 
     void ResizeTexture(uint16_t w, uint16_t h) {

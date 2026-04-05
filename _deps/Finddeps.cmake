@@ -9,27 +9,30 @@ set(DEPS_DIR "${PROJECT_SOURCE_DIR}/_deps")
 # =====================
 # imgui
 # =====================
-set(IMGUI_DIR "${DEPS_DIR}/imgui")
-if(NOT EXISTS "${IMGUI_DIR}/.git")
-    message(STATUS "Cloning imgui...")
-    execute_process(
-        COMMAND git clone --depth 1 https://github.com/ocornut/imgui.git -b master ${IMGUI_DIR}
-        RESULT_VARIABLE res
-    )
-    if(NOT res EQUAL 0)
-        message(FATAL_ERROR "Failed to clone imgui")
+option(ENABLE_IMGUI "Is enable imgui" OFF)
+if(ENABLE_IMGUI)
+    add_definitions(-DUSE_IMGUI) 
+    if(NOT EXISTS "${IMGUI_DIR}/.git")
+        message(STATUS "Cloning imgui...")
+        execute_process(
+            COMMAND git clone --depth 1 https://github.com/ocornut/imgui.git -b master ${IMGUI_DIR}
+            RESULT_VARIABLE res
+        )
+        if(NOT res EQUAL 0)
+            message(FATAL_ERROR "Failed to clone imgui")
+        endif()
     endif()
+    message(STATUS "imgui at ${IMGUI_DIR}")
+    add_library(imgui INTERFACE)
+    target_include_directories(imgui INTERFACE ${IMGUI_DIR})
+    set(IMGUI_SRC
+        ${IMGUI_DIR}/imgui.cpp
+        ${IMGUI_DIR}/imgui_draw.cpp
+        ${IMGUI_DIR}/imgui_widgets.cpp
+        ${IMGUI_DIR}/imgui_tables.cpp
+        ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+        ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp)
 endif()
-message(STATUS "imgui at ${IMGUI_DIR}")
-add_library(imgui INTERFACE)
-target_include_directories(imgui INTERFACE ${IMGUI_DIR})
-set(IMGUI_SRC
-    ${IMGUI_DIR}/imgui.cpp
-    ${IMGUI_DIR}/imgui_draw.cpp
-    ${IMGUI_DIR}/imgui_widgets.cpp
-    ${IMGUI_DIR}/imgui_tables.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp)
 
 # =====================
 # tinygltf
@@ -111,3 +114,19 @@ set_target_properties(glfw PROPERTIES
     IMPORTED_LOCATION "${GLFW_BUILD_DIR}/src/Release/glfw3dll.lib"
     INTERFACE_INCLUDE_DIRECTORIES "${GLFW_DIR}/include"
 )
+
+# =====================
+# cuda
+# =====================
+option(ENABLE_CUDA "Is enable cuda" ON)
+find_package(CUDAToolkit)
+if(ENABLE_CUDA AND CUDAToolkit_FOUND)
+    enable_language(CUDA)
+    add_definitions(-DUSE_CUDA)
+    set(CUDA_LIB CUDA::cudart)
+    file(GLOB_RECURSE CU_SRCS ${CMAKE_SOURCE_DIR}/source/*.cu)
+else()
+    message(STATUS "CUDA not found or USE_CUDA is off, building CPU-only version")
+    set(CUDA_LIB "")
+    set(CU_SRCS "")
+endif()

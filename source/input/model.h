@@ -1,5 +1,5 @@
 #pragma once
-#include "pch.h"
+#include "public.h"
 namespace ry {
 class RGBSpectrum {
 public:
@@ -46,4 +46,57 @@ public:
     vec3 c;
 };
 using Spectrum = RGBSpectrum;
+
+struct Triangle {
+    vec3 v0, v1, v2;
+    vec3 n0, n1, n2;
+    vec2 uv0, uv1, uv2;
+    int material;
+    // vec4 color;
+    // vec3 c; // centroid
+};
+
+struct Camera {
+    float znear = 0.0;
+    float zfar = 0.0;
+
+    // perspective
+    double aspectRatio = 0.0;  // min > 0
+    double yfov = 0.0;         // required. min > 0
+    // orthographic
+    double xmag = 0.0;   // required. must not be zero.
+    double ymag = 0.0;   // required. must not be zero.
+
+    vec3 w; // forward
+    vec3 e; // location of eye(cam)
+    vec3 v; // cam base up
+    vec3 u; // cam base right
+
+    mat4 projMatrix; // camera to clip
+    mat4 clipToCamera; // proj inverse
+
+    mat4 viewMatrix; // inverse(node.m)
+    mat4 projView;
+};
+
+struct Light {
+    float area = 0.0f;
+    float emissiveStrength;
+    Spectrum I; // or emissiveFactor
+    std::vector<uint32_t> tIdxs; // tris idxs
+};
+
+struct Material {
+    
+};
+
+class Model {
+public:
+	Model() {};
+    const std::vector<Triangle>& GetTriangles() const { return tris; }
+    const std::vector<Camera>& GetCameras() const { return cams; }
+private:
+    std::vector<Triangle> tris;
+    std::vector<Camera> cams;
+};
 }
