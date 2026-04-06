@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -47,6 +47,24 @@ struct vec2 {
     HD vec2(float x) : x(x), y(x) {}
     HD vec2(float x, float y) : x(x), y(y){}
 };
+
+HD inline vec2 operator+(const vec2& a, const vec2& b)
+{
+    return vec2(a.x + b.x, a.y + b.y);
+}
+
+HD inline vec2 operator-(const vec2& a, const vec2& b)
+{
+    return vec2(a.x - b.x, a.y - b.y);
+}
+
+HD inline vec2 operator*(float s, const vec2& v) {
+    return vec2(v.x * s, v.y * s);
+}
+
+HD inline vec2 operator/(const vec2& a, const vec2& b) {
+    return vec2(a.x / b.x, a.y / b.y);
+}
 /********************************
             vec3
 ********************************/

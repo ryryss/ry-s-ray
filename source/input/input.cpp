@@ -54,7 +54,7 @@ Model GLTFLoader::Load(const string& filename)
 
 Model GLTFLoader::BuildModel()
 {
-    assert(vertices.size() % 3 == 0 && vertIdx.size() % 3 == 0 && vertIdx.size() == vertices.size());
+    assert(vertIdx.size() % 3 == 0);
 
     Model m;
     // vert
@@ -76,11 +76,13 @@ Model GLTFLoader::BuildModel()
                 cam.zfar = c->perspective.zfar;
                 cam.yfov = c->perspective.yfov;
                 cam.aspectRatio = c->perspective.aspectRatio;
+                cam.type = 0;
             } else if (c->type == "orthographic") {
                 cam.znear = c->orthographic.znear;
                 cam.zfar = c->orthographic.zfar;
                 cam.xmag = c->orthographic.xmag;
                 cam.ymag = c->orthographic.ymag;
+                cam.type = 1;
             } else {
                 throw("cam info error");
             }
@@ -97,6 +99,7 @@ Model GLTFLoader::BuildModel()
                cam.v = cross(cam.u, cam.w);
                in this program, will cause errors
             */
+            cam.m = camNode.m;
             m.AddCamera(cam);
         }
     }

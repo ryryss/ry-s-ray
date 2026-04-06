@@ -17,8 +17,12 @@ void GpuBackend::Render(const Scene& scene, RenderTarget& target)
         dirty = false;
         CUDA_CHECK(cudaMalloc(&out, pixelCnt * sizeof(float4)));
     }
+    // upload camera info erveryframe
+    dScene.cam = scene.GetActiveCamera();
+
     Launch(dScene, out);
 
+    // get render result
     for (uint32_t i = 0; i < pixelCnt; i++) {
         target.pixels[i].x = out[i].x;
         target.pixels[i].y = out[i].y;

@@ -38,6 +38,7 @@ struct DeviceScene {
 
     int* material = nullptr;
 
+    Camera cam;
     SceneParams params;
 };
 

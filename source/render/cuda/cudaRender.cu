@@ -1,18 +1,22 @@
 #include "GpuBackend.h"
-
+#include "algorithm.hpp"
 using namespace ry;
 using namespace std;
 
-
-__global__ void RenderKernel(const DeviceScene scene, float4* out)
+__global__ void RenderKernel(const DeviceScene& scene, float4* out)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    uint32_t pixelCount = scene.params.width * scene.params.height;
+    uint32_t width = scene.params.width;
+    uint32_t height = scene.params.height;
+    uint32_t x = idx % width;
+    uint32_t y = idx / width;
+    uint32_t pixelCount = width * height;
     if (idx >= pixelCount) {
         return;
     };
 
-
+    Ray r = RayGeneration(x, y, width, height, scene.cam);
+    Interaction isect;
 }
 
 void Launch(const DeviceScene scene,float4* out)

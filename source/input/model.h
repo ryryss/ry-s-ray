@@ -57,6 +57,7 @@ struct Triangle {
 };
 
 struct Camera {
+    char type; // 0 = perspective, other = orthographic
     float znear = 0.0;
     float zfar = 0.0;
 
@@ -77,6 +78,8 @@ struct Camera {
 
     mat4 viewMatrix; // inverse(node.m)
     mat4 projView;
+
+    mat4 m; // trans mat
 };
 
 struct Light {
@@ -84,6 +87,21 @@ struct Light {
     float emissiveStrength;
     Spectrum I; // or emissiveFactor
     std::vector<uint32_t> tIdxs; // tris idxs
+};
+
+struct Ray {
+    vec3 o, d;
+};
+
+struct Interaction {
+    float tMin;
+    float tMax;
+
+    vec3 bary;     // barycentric
+    vec3 p;        // hit point
+    vec3 normal;   // of hit face
+;
+    // const Triangle* tri;
 };
 
 struct Material {
