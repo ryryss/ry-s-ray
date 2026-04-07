@@ -134,8 +134,30 @@ HD static Ray RayGeneration(uint32_t x, uint32_t y, uint32_t width, uint32_t hei
     return { o, d };
 }
 
-HD static bool Intersect(const DeviceScene& sceneconst Ray& r, Interaction& isect)
+HD static bool Intersect(const Triangle* tris, uint32_t triCnt, const Ray& r, Interaction& isect)
 {
-    const DeviceScene& scene
+    isect.hit = -1;
+    float t, gu, gv;
+    // for (int i = 0; i < triangles.size(); i++) {
+    for (int i = 0; i < triCnt; i++) {
+        auto& tri = tris[i];
+        auto& a = tri.v0;
+        auto& b = tri.v1;
+        auto& c = tri.v2;
+        if (Moller_Trumbore(r.o, r.d, a, b, c, t, gu, gv) &&
+            t > isect.tMin && t < isect.tMax) {
+            isect.tMax = t;
+            isect.bary = { 1 - gu - gv, gu, gv };
+            isect.p = r.o + r.d * t;
+            isect.hit = i;
+        }
+    }
+    if (isect.hit >= 0) {
+        auto& tri = tris[isect.hit];
+        isect.normal = normalize(tri.n0 * isect.bary[0]
+            + tri.n1 * isect.bary[1] + tri.n2 * isect.bary[2]);
+        return true;
+    }
+    return false;
 }
 }

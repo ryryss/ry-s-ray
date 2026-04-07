@@ -58,7 +58,7 @@ Model GLTFLoader::BuildModel()
 
     Model m;
     // vert
-    auto tris = m.GetTriangles();
+    auto& tris = m.GetTriangles();
     for (int i = 0; i < vertices.size() / 3; i++) {
         const auto& v0 = vertices[vertIdx[i]];
         const auto& v1 = vertices[vertIdx[i + 1]];
@@ -143,7 +143,7 @@ Model GLTFLoader::BuildModel()
     return m;
 }
 
-Triangle ry::GLTFLoader::BuildTriangle(const VertexInfo& v0, const VertexInfo& v1, const VertexInfo& v2)
+Triangle GLTFLoader::BuildTriangle(const VertexInfo& v0, const VertexInfo& v1, const VertexInfo& v2)
 {
     return {
         v0.pos, v1.pos, v2.pos,

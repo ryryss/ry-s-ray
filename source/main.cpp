@@ -15,12 +15,13 @@ int main(int argc, char* argv[]) {
         file = argv[1];
     }
     auto& d = Display::GetInstance();
-
+    
     Scene s;
     s.AddModel(Input::Load(file));
+    s.BuildBVH();
 
+    RenderTarget target(d.getWindowHeight(), d.getWindowWidth());
     // for resize window
-    RenderTarget target;
     d.SetResizeCallback([&target](int w, int h) {
         target.height = h;
         target.width = w;

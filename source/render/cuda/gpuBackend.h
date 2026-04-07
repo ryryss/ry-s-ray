@@ -24,7 +24,7 @@ struct SceneParams {
 };
 
 struct DeviceScene {
-    float3* v0 = nullptr;
+    /*float3* v0 = nullptr;
     float3* v1 = nullptr;
     float3* v2 = nullptr;
 
@@ -34,8 +34,8 @@ struct DeviceScene {
 
     float2* uv0 = nullptr;
     float2* uv1 = nullptr;
-    float2* uv2 = nullptr;
-
+    float2* uv2 = nullptr;*/
+    Triangle* tris = nullptr;
     int* material = nullptr;
 
     Camera cam;
@@ -50,7 +50,7 @@ private:
 
     bool dirty = true;
     DeviceScene dScene;
-    float4* out = nullptr;
+    vec4* out = nullptr;
 };
 }
 

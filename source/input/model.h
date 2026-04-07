@@ -101,7 +101,7 @@ struct Interaction {
     vec3 p;        // hit point
     vec3 normal;   // of hit face
 ;
-    // const Triangle* tri;
+    int hit = -1;
 };
 
 struct Material {
@@ -111,7 +111,7 @@ struct Material {
 class Model {
 public:
 	Model() {};
-    const std::vector<Triangle>& GetTriangles() const { return tris; }
+    std::vector<Triangle>& GetTriangles() { return tris; }
     const std::vector<Camera>& GetCameras() const { return cams; }
     void AddCamera(const Camera& c) { cams.push_back(c); }
 private:

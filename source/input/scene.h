@@ -1,4 +1,5 @@
 #pragma once
+#include "bvh.h"
 #include "model.h"
 namespace ry {
 class Scene {
@@ -8,16 +9,21 @@ public:
         
     };
     const std::vector<Model>& GetModels() const { return models; }
-    uint32_t GetTrisCnt() const { return trisCnt; }
+    const std::vector<Triangle>& GetTriangles() const { return tris; }
 
     void SetActiveCamera(uint8_t c) { cameraId = c; };
     const Camera& GetActiveCamera() const { return cameras[cameraId]; };
+
+    void BuildBVH();
 private:
-    uint32_t trisCnt = 0;
     std::vector<Model> models;
+    std::vector<Triangle> tris;
 
     uint8_t cameraId = 0;
     std::vector<Camera> cameras;
+
+    std::vector<BVHNode> bvhNodes;
+    uint32_t leafCnt = 0;
 };
 
 }

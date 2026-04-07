@@ -2,7 +2,7 @@
 using namespace std;
 using namespace ry;
 #ifdef USE_CUDA
-extern void Launch(const DeviceScene scene, float4* out);
+extern void Launch(const DeviceScene& scene, vec4* out);
 
 void GpuBackend::Render(const Scene& scene, RenderTarget& target)
 {
@@ -11,11 +11,10 @@ void GpuBackend::Render(const Scene& scene, RenderTarget& target)
         dScene.params.height = target.height;
         dScene.params.width = target.width;
     }
-    if (dirty || dScene.params.triCnt != scene.GetTrisCnt()) {
-        dScene.params.triCnt = scene.GetTrisCnt();
+    if (dirty) {
         Upload(scene);
         dirty = false;
-        CUDA_CHECK(cudaMalloc(&out, pixelCnt * sizeof(float4)));
+        CUDA_CHECK(cudaMalloc(&out, pixelCnt * sizeof(vec4)));
     }
     // upload camera info erveryframe
     dScene.cam = scene.GetActiveCamera();
@@ -23,17 +22,12 @@ void GpuBackend::Render(const Scene& scene, RenderTarget& target)
     Launch(dScene, out);
 
     // get render result
-    for (uint32_t i = 0; i < pixelCnt; i++) {
-        target.pixels[i].x = out[i].x;
-        target.pixels[i].y = out[i].y;
-        target.pixels[i].z = out[i].z;
-        target.pixels[i].w = out[i].w;
-    }
+    CUDA_CHECK(cudaMemcpy(target.pixels, out, pixelCnt * sizeof(vec4), cudaMemcpyDeviceToHost));
 }
 
 void GpuBackend::Upload(const Scene& scene)
 {
-    uint32_t n = dScene.params.triCnt;
+    /*uint32_t n = dScene.params.triCnt;
 
     cudaMalloc(&dScene.v0, sizeof(float3) * n);
     cudaMalloc(&dScene.v1, sizeof(float3) * n);
@@ -75,7 +69,13 @@ void GpuBackend::Upload(const Scene& scene)
 
             i < n ? i++ : i = 0;
         }
-    }
+    }*/
+    const auto tris = scene.GetTriangles();
+    uint32_t n = tris.size();
+    dScene.params.triCnt = tris.size();
+
+    CUDA_CHECK(cudaMalloc(&dScene.tris, sizeof(Triangle) * n));
+    CUDA_CHECK(cudaMemcpy(dScene.tris, tris.data(), sizeof(Triangle) * n, cudaMemcpyHostToDevice));
 }
 
 #endif
