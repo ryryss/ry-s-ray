@@ -91,6 +91,8 @@ struct Light {
 
 struct Ray {
     vec3 o, d;
+    /*Ray() {}
+    Ray(const vec3& o, const vec3& d) : o(o), d(d) {}*/
 };
 
 struct Interaction {

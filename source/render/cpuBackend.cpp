@@ -2,6 +2,6 @@
 using namespace std;
 using namespace ry;
 
-void CpuBackend::Render(const Scene& scene, RenderTarget& target)
+void CpuBackend::Render(Scene& scene, RenderTarget& target)
 {
 }

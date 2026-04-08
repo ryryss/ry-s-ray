@@ -17,6 +17,6 @@ struct RenderTarget {
 class IRenderBackend {
 public:
     virtual ~IRenderBackend() = default;
-    virtual void Render(const Scene& scene, RenderTarget& target) = 0;
+    virtual void Render(Scene& scene, RenderTarget& target) = 0;
 };
 }

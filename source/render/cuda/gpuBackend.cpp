@@ -4,7 +4,7 @@ using namespace ry;
 #ifdef USE_CUDA
 extern void Launch(const DeviceScene& scene, vec4* out);
 
-void GpuBackend::Render(const Scene& scene, RenderTarget& target)
+void GpuBackend::Render(Scene& scene, RenderTarget& target)
 {
     uint32_t pixelCnt = target.width * target.height;
     if (dScene.params.height != target.height || dScene.params.width != target.width) {
@@ -17,6 +17,7 @@ void GpuBackend::Render(const Scene& scene, RenderTarget& target)
         CUDA_CHECK(cudaMalloc(&out, pixelCnt * sizeof(vec4)));
     }
     // upload camera info erveryframe
+    scene.ProcessCamera(target.width, target.height);
     dScene.cam = scene.GetActiveCamera();
 
     Launch(dScene, out);

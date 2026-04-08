@@ -14,7 +14,7 @@ unique_ptr<IRenderBackend> Renderer::CreateBackend()
     return std::make_unique<CpuBackend>();
 }
 
-void Renderer::Render(const Scene& scene, RenderTarget& target)
+void Renderer::Render(Scene& scene, RenderTarget& target)
 {
     backend->Render(scene, target);
 }

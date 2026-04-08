@@ -13,6 +13,7 @@ public:
 
     void SetActiveCamera(uint8_t c) { cameraId = c; };
     const Camera& GetActiveCamera() const { return cameras[cameraId]; };
+    void ProcessCamera(uint16_t scrw, uint16_t scrh);
 
     void BuildBVH();
 private:

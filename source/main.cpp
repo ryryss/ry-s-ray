@@ -23,23 +23,23 @@ int main(int argc, char* argv[]) {
     RenderTarget target(d.getWindowHeight(), d.getWindowWidth());
     // for resize window
     d.SetResizeCallback([&target](int w, int h) {
-        target.height = h;
-        target.width = w;
+        target.ReSize(w, h);
     });
 
     Renderer renderer;
-    int keepRender = 10;
+    int times = 10;
+    bool over = false;
     thread t([&]() {
-        while (keepRender--) {
+        while (times--) {
             renderer.Render(s, target);
         }
+        over = true;
     });
     t.detach();
 
-    while (1) {
+    while (!over) {
         d.Present(target.pixels); // present to display
         Sleep(5);
     }
-    keepRender = -1;
     return 0;
 }

@@ -44,7 +44,7 @@ struct DeviceScene {
 
 class GpuBackend : public IRenderBackend {
 public:
-    void Render(const Scene& scene, RenderTarget& target) override;
+    void Render(Scene & scene, RenderTarget& target) override;
 private:
     void Upload(const Scene& scene);
 

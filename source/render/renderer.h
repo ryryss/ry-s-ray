@@ -4,7 +4,7 @@ namespace ry {
 class Renderer {
 public:
     Renderer() { backend = CreateBackend(); }
-    void Render(const Scene& scene, RenderTarget& target);
+    void Render(Scene& scene, RenderTarget& target);
 
 private:
     std::unique_ptr<IRenderBackend> CreateBackend();

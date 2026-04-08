@@ -18,6 +18,34 @@ HD inline float rand01(uint32_t& seed) {
     return (seed & 0x00FFFFFF) / float(0x01000000);
 }
 
+HD inline mat4 perspective(float fov, float aspect, float zNear, float zFar)
+{
+    float tanHalfFov = tanf(fov * 0.5f);
+
+    mat4 m;
+    m.c0 = vec4(1.0f / (aspect * tanHalfFov), 0, 0, 0);
+    m.c1 = vec4(0, 1.0f / tanHalfFov, 0, 0);
+    m.c2 = vec4(0, 0, (zFar + zNear) / (zNear - zFar), -1.0f);
+    m.c3 = vec4(0, 0, (2.0f * zFar * zNear) / (zNear - zFar), 0);
+    return m;
+}
+
+HD inline mat4 ortho(float left, float right,
+    float bottom, float top,
+    float zNear, float zFar)
+{
+    mat4 m;
+    m.c0 = vec4(2.0f / (right - left), 0, 0, 0);
+    m.c1 = vec4(0, 2.0f / (top - bottom), 0, 0);
+    m.c2 = vec4(0, 0, -2.0f / (zFar - zNear), 0);
+    m.c3 = vec4(
+        -(right + left) / (right - left),
+        -(top + bottom) / (top - bottom),
+        -(zFar + zNear) / (zFar - zNear),
+        1.0f
+    );
+    return m;
+}
 /*
     * @brief Computes the intersection of a ray with a triangle using the Möller–Trumbore algorithm.
     *
@@ -113,11 +141,12 @@ HD static Ray RayGeneration(uint32_t x, uint32_t y, uint32_t width, uint32_t hei
     float vv = -cam.ymag + 2 * cam.ymag * (y + 0.5) / height;
     if (cam.type == 0) {
         o = cam.e;
-        d = normalize(cam.znear * cam.w + cam.u * uu + cam.v * vv);
+        d = normalize(cam.w * cam.znear  + cam.u * uu + cam.v * vv);
     } else {
         o = cam.e + cam.u * uu + cam.v * vv;
         d = cam.w;
-    }*/
+    }
+    return { o, d };*/
 
     // Inverse Projection Method
     // display -> NDC -> clip(projection) -> camera(view) -> world

@@ -5,6 +5,6 @@ class IRenderBackend;
 
 class CpuBackend : public IRenderBackend {
 public:
-    void Render(const Scene& scene, RenderTarget& target) override;
+    void Render(Scene& scene, RenderTarget& target) override;
 };
 }
